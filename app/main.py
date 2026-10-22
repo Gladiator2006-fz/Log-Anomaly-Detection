@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import sys
 from pathlib import Path
 
@@ -12,7 +13,7 @@ ROOT = Path(__file__).resolve().parents[1]
 SRC = ROOT / "src"
 sys.path.insert(0, str(SRC))
 
-from anomaly_pipeline import load_and_prepare, load_model, train_and_evaluate  # noqa: E402
+from anomaly_pipeline import load_and_prepare, train_and_evaluate  # noqa: E402
 
 app = FastAPI(title="AI Log Anomaly Detection API", version="1.0")
 app.add_middleware(
@@ -75,3 +76,27 @@ def anomalies(limit: int = Query(20, ge=1, le=200)):
 def retrain():
     _, metrics = train_and_evaluate()
     return metrics
+
+
+@app.get("/api/hdfs-full-metrics")
+def hdfs_full_metrics():
+    """Read-only measured HDFS_v1 results. Does not retrain or touch the 2k demo."""
+    path = ROOT / "results" / "hdfs_full_metrics.json"
+    if not path.exists():
+        return {
+            "available": False,
+            "dataset": "HDFS_v1",
+            "reason": "Full HDFS_v1 evaluation has not been run. Results file is missing.",
+        }
+    try:
+        data = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError):
+        return {
+            "available": False,
+            "dataset": "HDFS_v1",
+            "reason": "results/hdfs_full_metrics.json exists but could not be read.",
+        }
+    if not isinstance(data, dict):
+        return {"available": False, "dataset": "HDFS_v1", "reason": "Unexpected metrics file format."}
+    data["available"] = True
+    return data

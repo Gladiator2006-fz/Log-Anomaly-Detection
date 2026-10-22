@@ -6,7 +6,7 @@
   <title>Nexora Observability — Demo Workspace</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
   <link rel="stylesheet" href="/static/app.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <script src="/static/chart.umd.min.js"></script>
 </head>
 <body>
   <div id="loginScreen" class="login-screen">
@@ -155,7 +155,7 @@
           <div class="page-head">
             <div>
               <h1>Overview</h1>
-              <p class="sub">Corpus statistics from the live API. These cards are not held-out F1.</p>
+              <p class="sub">Two scopes on this page: the HDFS_v1 research benchmark from <code>/api/hdfs-full-metrics</code>, and the live HDFS-2k demo from <code>/api/stats</code>.</p>
             </div>
             <div class="toolbar page-actions">
               <span class="chip">Updated<span id="refreshed">—</span></span>
@@ -163,6 +163,95 @@
               <button id="retrainBtn" class="btn primary" type="button">Retrain model</button>
             </div>
           </div>
+
+          <section class="research-scope" aria-labelledby="researchTitle">
+            <div class="scope-head">
+              <div>
+                <span class="pill">Research</span>
+                <h2 id="researchTitle" class="section-title">HDFS_v1 Full-Corpus Research Benchmark</h2>
+                <p class="sub">Held-out BlockId evaluation. These figures are not the HDFS-2k demo counts below.</p>
+              </div>
+              <span id="researchStatus" class="chip">Checking…</span>
+            </div>
+            <div id="researchLoading" class="eval-empty">
+              <p class="empty-title">Loading research metrics</p>
+              <p>Fetching measured results from <code>/api/hdfs-full-metrics</code>.</p>
+            </div>
+            <div id="researchUnavailable" class="eval-empty" hidden>
+              <p class="empty-title">Research benchmark unavailable</p>
+              <p id="researchUnavailableReason">The full-corpus metrics endpoint did not return a usable result. The HDFS-2k demo below is unaffected.</p>
+            </div>
+            <div id="researchFilled" hidden>
+              <div class="kpis research-kpis" aria-label="Full-corpus scale">
+                <article class="tech-card kpi kpi-compact">
+                  <div class="kpi-label">Total log lines processed</div>
+                  <div id="rsRows" class="kpi-value kpi-value-md">—</div>
+                  <div class="kpi-foot">Parquet rows streamed</div>
+                </article>
+                <article class="tech-card kpi kpi-compact">
+                  <div class="kpi-label">Unique blocks</div>
+                  <div id="rsBlocks" class="kpi-value kpi-value-md">—</div>
+                  <div class="kpi-foot">Evaluation unit · BlockId</div>
+                </article>
+                <article class="tech-card kpi kpi-compact">
+                  <div class="kpi-label">Ground-truth anomalous blocks</div>
+                  <div id="rsAnoms" class="kpi-value kpi-value-md">—</div>
+                  <div class="kpi-foot">Full-corpus labelled anomalies</div>
+                </article>
+                <article class="tech-card kpi kpi-compact">
+                  <div class="kpi-label">Held-out test blocks</div>
+                  <div id="rsTestBlocks" class="kpi-value kpi-value-md">—</div>
+                  <div class="kpi-foot">Official test split</div>
+                </article>
+                <article class="tech-card kpi kpi-compact">
+                  <div class="kpi-label">Held-out test anomalies</div>
+                  <div id="rsTestAnoms" class="kpi-value kpi-value-md">—</div>
+                  <div class="kpi-foot">Anomalous blocks in the test split</div>
+                </article>
+              </div>
+              <div class="research-metric-head">
+                <h3>Improved configuration · held-out test</h3>
+                <p class="sub" id="researchMetricScope">Isolation Forest scores on unseen test blocks only.</p>
+              </div>
+              <div class="kpis research-metrics" aria-label="Held-out test metrics">
+                <article class="tech-card kpi kpi-compact">
+                  <div class="kpi-label">Precision</div>
+                  <div id="rsPrecision" class="kpi-value kpi-value-md">—</div>
+                  <div class="kpi-foot" id="rsPrecisionHint">Predicted positives that were correct</div>
+                </article>
+                <article class="tech-card kpi kpi-compact">
+                  <div class="kpi-label">Recall</div>
+                  <div id="rsRecall" class="kpi-value kpi-value-md">—</div>
+                  <div class="kpi-foot" id="rsRecallHint">Actual test anomalies found</div>
+                </article>
+                <article class="tech-card kpi kpi-compact">
+                  <div class="kpi-label">F1-score</div>
+                  <div id="rsF1" class="kpi-value kpi-value-md accent">—</div>
+                  <div class="kpi-foot">Held-out test blocks</div>
+                </article>
+                <article class="tech-card kpi kpi-compact">
+                  <div class="kpi-label">False-positive rate</div>
+                  <div id="rsFpr" class="kpi-value kpi-value-md">—</div>
+                  <div class="kpi-foot" id="rsFprHint">False alarms among normal test blocks</div>
+                </article>
+                <article class="tech-card kpi kpi-compact">
+                  <div class="kpi-label">PR-AUC</div>
+                  <div id="rsPrauc" class="kpi-value kpi-value-md">—</div>
+                  <div class="kpi-foot">Ranking quality · not a thresholded F1</div>
+                </article>
+              </div>
+              <p id="researchScopeNote" class="eval-note"></p>
+            </div>
+          </section>
+
+          <section class="demo-scope" aria-labelledby="demoTitle">
+            <div class="scope-head">
+              <div>
+                <span class="pill demo">Demo</span>
+                <h2 id="demoTitle" class="section-title">HDFS-2k Demo</h2>
+                <p class="sub">Operational corpus view from <code>/api/stats</code> and <code>/api/anomalies</code>. Retrain still trains this 2k sample only.</p>
+              </div>
+            </div>
           <div class="kpis" aria-label="Corpus statistics">
             <article class="tech-card kpi">
               <div class="kpi-top"><span class="kpi-label">Total logs</span><span class="kpi-icon" aria-hidden="true"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 12h16M4 18h10"/></svg></span></div>
@@ -193,8 +282,8 @@
             <section class="eval-surface">
               <div class="eval-head">
                 <div>
-                  <h2 class="section-title">Held-out test evaluation</h2>
-                  <p class="sub">Official Isolation Forest metrics on 399 test blocks</p>
+                  <h2 class="section-title">HDFS-2k held-out test</h2>
+                  <p class="sub">Filled after Retrain in this browser session. Not the full-corpus benchmark above.</p>
                 </div>
               </div>
               <div id="evalEmpty" class="eval-empty">
@@ -255,6 +344,7 @@
               <span>Showing <strong id="rowCount">0</strong> of <strong id="rowTotal">0</strong> highest-scoring lines</span>
               <span>Click a row to open details</span>
             </div>
+          </section>
           </section>
         </section>
 
@@ -443,7 +533,7 @@
           <div class="page-head">
             <div>
               <h1>Model Evaluation</h1>
-              <p class="sub">Held-out test-block metrics from a live retrain. Retraining runs on the server and may take several seconds.</p>
+              <p class="sub">HDFS-2k retrain stays on this page. The HDFS_v1 comparison below is a separate held-out experiment loaded from <code>/api/hdfs-full-metrics</code>.</p>
             </div>
             <button id="evalRetrainBtn" class="btn primary" type="button">Retrain model</button>
           </div>
@@ -462,7 +552,7 @@
           <div class="mid">
             <div class="eval-surface">
               <div class="eval-head">
-                <h2 class="section-title">Official held-out results</h2>
+                <h2 class="section-title">HDFS-2k official held-out results</h2>
               </div>
               <div id="evalPageEmpty" class="eval-empty">
                 <p class="empty-title">No retrain result in this browser session</p>
@@ -473,6 +563,54 @@
             <div class="tech-card note-card">
               <h3>Why recall stays low on HDFS-2k</h3>
               This sample is almost one line per block, so the model has little sequence context. On the committed 399-block test split the official result is 1 true positive out of 13 actual test anomalies. That is a dataset limitation. The 0.35% corpus detection rate is a different statistic.
+            </div>
+          </div>
+          <div class="eval-surface eval-full">
+            <div class="scope-head">
+              <div>
+                <span class="pill">Research</span>
+                <h2 class="section-title">HDFS_v1 held-out comparison</h2>
+                <p class="sub">Improved vs baseline on the same test-block split. Retrain does not overwrite this file.</p>
+              </div>
+              <span id="fullEvalStatus" class="chip">Checking…</span>
+            </div>
+            <div id="fullEvalLoading" class="eval-empty" hidden>
+              <p class="empty-title">Loading research comparison</p>
+              <p>Fetching measured results from <code>/api/hdfs-full-metrics</code>.</p>
+            </div>
+            <div id="fullEvalEmpty" class="eval-empty">
+              <p class="empty-title">Research comparison unavailable</p>
+              <p id="fullEvalEmptyReason">The full-corpus metrics endpoint did not return a usable result. The HDFS-2k retrain above is unaffected.</p>
+            </div>
+            <div id="fullEvalFilled" hidden>
+              <div class="table-scroll compare-scroll">
+                <table class="compare-table">
+                  <caption class="compare-caption" id="compareCaption"></caption>
+                  <thead>
+                    <tr>
+                      <th scope="col">Metric</th>
+                      <th scope="col">Improved</th>
+                      <th scope="col">Baseline</th>
+                    </tr>
+                  </thead>
+                  <tbody id="compareRows"></tbody>
+                </table>
+              </div>
+              <div class="confusion-pair">
+                <div class="eval-box">
+                  <div class="kpi-label">Improved · confusion</div>
+                  <p class="hint">Validation threshold on held-out test blocks</p>
+                  <div id="improvedConfusion" class="confusion"></div>
+                </div>
+                <div class="eval-box">
+                  <div class="kpi-label">Baseline · confusion</div>
+                  <p class="hint">contamination=0.05 · original features · train fit</p>
+                  <div id="baselineConfusion" class="confusion"></div>
+                </div>
+              </div>
+              <div class="tech-card note-card" id="researchInterp"></div>
+              <p id="researchSettings" class="hint eval-follow"></p>
+              <ul id="researchLimits" class="eval-limit"></ul>
             </div>
           </div>
         </section>

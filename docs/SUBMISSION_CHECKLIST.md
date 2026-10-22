@@ -1,6 +1,6 @@
 # Final submission checklist
 
-Use this with `README.md` and `docs/FINAL_PROJECT_HANDOFF.md`. Do not treat corpus KPI counts as held-out F1.
+Use this with `README.md`, `docs/FINAL_PROJECT_HANDOFF.md`, and `docs/PANEL_PRESENTATION.md`. Do not treat corpus KPI counts as held-out F1.
 
 ## Application readiness
 
@@ -11,6 +11,9 @@ Use this with `README.md` and `docs/FINAL_PROJECT_HANDOFF.md`. Do not treat corp
 - [x] Corpus dashboard view (not official F1): 2,000 lines, 7 flags, 0.35% rate.
 - [x] Endpoints: `GET /api/health`, `GET /api/stats`, `GET /api/anomalies`, `POST /api/retrain`.
 - [x] KPI cards are corpus (`/api/stats`). Held-out P/R/F1 appear only after Retrain (`evaluation=held_out_test_blocks`).
+- [x] Alerts totals use model-flagged `detected_anomalies`, not ground-truth `Label`.
+- [x] LIVE badges follow `/api/health`. They do not imply a log stream.
+- [x] Chart.js is local (`dashboard/chart.umd.min.js`).
 
 ## Files to submit
 
@@ -18,17 +21,17 @@ Include:
 
 - `app/`, `src/`, `dashboard/`, `data/HDFS/`, `artifacts/isolation_forest_pipeline.joblib`
 - `results/metrics.json`, `results/anomaly_results.csv`
-- `docs/FINAL_PROJECT_HANDOFF.md`, `docs/SUBMISSION_CHECKLIST.md`
+- `docs/FINAL_PROJECT_HANDOFF.md`, `docs/SUBMISSION_CHECKLIST.md`, `docs/PANEL_PRESENTATION.md`
 - `README.md`, `requirements.txt`
 
 Exclude if possible: `.venv/`, `__pycache__/`, `.cursor/`. There is no Docker/cloud config to submit.
 
 ## Screenshots to capture (none are stored in the repo)
 
-1. Header: health pill + last-refreshed + Refresh / Retrain.
+1. Login, then header: LIVE badge + last-refreshed + Refresh / Retrain.
 2. Four corpus KPI cards (2000 / 7 / 0.35% / 14) with the corpus subtitle visible.
-3. Evaluation panel empty (before retrain).
-4. Evaluation panel after retrain (0.5000 / 0.0769 / 0.1333 / 0.0026).
+3. Alerts & Detection Center: 7 model-flagged vs 69 labelled; sample disclaimer.
+4. Model Evaluation empty, then after retrain (0.5000 / 0.0769 / 0.1333 / 0.0026).
 5. Corpus bar + EventId/Component charts.
 6. Anomalies table (LineId, BlockId, EventId, Level, Component, Score, Label, Content).
 7. Optional: ~768 px width.
@@ -38,10 +41,10 @@ Exclude if possible: `.venv/`, `__pycache__/`, `.cursor/`. There is no Docker/cl
 1. `cd` to this project root. Activate `.venv`.
 2. `python src/train_model.py` if artifacts are missing; otherwise start the API.
 3. `uvicorn app.main:app --reload` or `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`.
-4. Open http://127.0.0.1:8000
-5. Show corpus KPIs; say they are not test F1.
-6. Refresh Data.
-7. Retrain Model (~15 s); show held-out panel.
+4. Open http://127.0.0.1:8000 and click **Enter Demo Workspace**.
+5. Show corpus KPIs; say they are not test F1. Point at LIVE = API health.
+6. Open Alerts: 7 flags vs 69 labels. Review flagged logs.
+7. Retrain Model (often ~10–60 s); show held-out panel on Model Evaluation.
 8. Optionally open `results/metrics.json`.
 
 ## Fallback behaviour
@@ -65,4 +68,4 @@ Exclude if possible: `.venv/`, `__pycache__/`, `.cursor/`. There is no Docker/cl
 12. **Why unused `HDFS_templates.csv`?** 30 Loghub-style templates with different EventId numbers than the 2k structured file.
 13. **What is in the Joblib file?** A dict: `pipeline`, `threshold`, `features`, `categorical`, `numeric`, `frequency_maps`, `settings`.
 14. **If the results CSV is deleted?** `result_df()` calls `train_and_evaluate()` and rebuilds artifacts. A corrupt CSV can hit the `load_and_prepare()` path and break `/api/stats`.
-15. **What if Chart.js cannot load?** KPI cards and the table still use the APIs. The three Chart.js canvases will not render without the CDN (or a cache).
+15. **What if charts fail?** Chart.js is bundled at `/static/chart.umd.min.js`. KPI cards and tables still use the APIs if a canvas fails. Google Fonts need network; Segoe UI is the fallback.

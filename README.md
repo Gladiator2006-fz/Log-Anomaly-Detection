@@ -17,7 +17,8 @@ Equivalent launch if `uvicorn` is not on PATH: `python -m uvicorn app.main:app -
 
 Open http://127.0.0.1:8000
 
-Full write-up: `docs/FINAL_PROJECT_HANDOFF.md`.
+Full write-up: `docs/FINAL_PROJECT_HANDOFF.md`.  
+Panel script and numbers card: `docs/PANEL_PRESENTATION.md`.
 
 ## What is implemented
 - HDFS_2k structured log loading and label matching through `BlockId`
@@ -26,8 +27,9 @@ Full write-up: `docs/FINAL_PROJECT_HANDOFF.md`.
 - Precision, recall, F1 and false-positive-rate evaluation against the provided HDFS labels
 - Leakage-safe BlockId train/validation/test split with validation threshold tuning
 - Joblib model persistence
-- FastAPI endpoints: `/api/health`, `/api/stats`, `/api/anomalies`, `/api/retrain`
-- Browser dashboard with anomaly summary and top anomalies
+- FastAPI endpoints: `/api/health`, `/api/stats`, `/api/anomalies`, `/api/retrain`, plus read-only `/api/hdfs-full-metrics`
+- Nexora Observability dashboard (mock login): Overview, Live Logs, Alerts & Detection Center, Anomaly Investigation, Model Evaluation, Activity History
+- Corpus KPIs from `/api/stats` kept separate from held-out P/R/F1 after Retrain
 
 ## Dataset notes
 - Structured logs: `data/HDFS/HDFS_2k.log_structured.csv` (2,000 lines, 1,994 unique blocks).
@@ -96,3 +98,18 @@ Isolation Forest itself is unsupervised. Labels are not a classification target.
 - The saved model mainly flags rare `E14` verification lines. Recall stays about 7.7% on the test blocks (1 of 13).
 - Validation/test anomaly counts are small (~13–14 blocks), so F1 has high variance.
 - Do not treat dashboard counts as the official academic result; use the held-out numbers in `results/metrics.json`.
+
+## HDFS_v1 full-corpus evaluation
+The 2k demo is unchanged. A separate streaming evaluator reads `../data/HDFS_full/data/*.parquet` (or `data/HDFS_full/data` if copied next to `ready/`), aggregates by `block_id`, and writes `results/hdfs_full_metrics.json`.
+
+```powershell
+python src/hdfs_full_eval.py --subset
+python src/hdfs_full_eval.py
+```
+
+Official full-corpus held-out test (115,013 blocks, 3,368 anomalies), from that JSON:
+
+- Improved (2k settings + validation threshold): precision 0.3181, recall 0.5736, F1 0.4093, FPR 0.0371, PR-AUC 0.2370, TP/FP/FN = 1932/4141/1436.
+- Baseline (contamination=0.05, original features, train fit): precision 0.3215, recall 0.5582, F1 0.4080, FPR 0.0355, PR-AUC 0.4652, TP/FP/FN = 1880/3967/1488.
+
+F1 is a tie (+0.0012). Baseline PR-AUC is higher. Do not present the 2k settings as a full-corpus improvement. Details: `docs/HDFS_FULL_EVALUATION.md`. The dashboard Model Evaluation page reads `/api/hdfs-full-metrics`.

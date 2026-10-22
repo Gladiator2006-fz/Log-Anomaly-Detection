@@ -68,6 +68,7 @@ app/main.py  (FastAPI)
   GET  /api/stats        → corpus counts from anomaly_results.csv
   GET  /api/anomalies    → top-scoring lines from the CSV
   POST /api/retrain      → train_and_evaluate()
+  GET  /api/hdfs-full-metrics → read-only results/hdfs_full_metrics.json
         │
         ▼
 dashboard/index.html
@@ -82,7 +83,7 @@ Supporting files that exist but are not on the live scoring path:
 - `data/HDFS/HDFS_templates.csv` — 30-template Loghub-style list. **Not used for training** (different EventId numbering).
 - `models/` and `notebooks/` — empty placeholders (`.gitkeep` only).
 
-`app/main.py` imports `load_model` but does not call it. Live dashboard reads `results/anomaly_results.csv`. The Joblib file is written by training and is loadable through `load_bundle()` / `load_model()`.
+Live dashboard reads `results/anomaly_results.csv`. The Joblib file is written by training and is loadable through `load_bundle()` / `load_model()`. The API does not call `load_model()` for scoring.
 
 ---
 
@@ -163,7 +164,7 @@ FastAPI app (`title="AI Log Anomaly Detection API"`, `version="1.0"`). CORS is o
 
 ### `dashboard/index.html`
 
-Single-page UI. Loads Chart.js from the jsDelivr CDN. Calls `/api/health`, `/api/stats`, and `/api/anomalies?limit=20` on load and Refresh. Retrain POSTs `/api/retrain` and stores the held-out payload in `sessionStorage`. KPI cards are corpus-only.
+Nexora Observability SPA with mock login. Loads Chart.js from `/static/chart.umd.min.js`. Calls `/api/health`, `/api/stats`, and `/api/anomalies?limit=20` on load and Refresh. Retrain POSTs `/api/retrain` and stores the held-out payload in `sessionStorage`. KPI cards are corpus-only.
 
 ### `src/inspect_data.py`
 
@@ -181,6 +182,7 @@ Optional inspector. Lists `data/HDFS` files and prints CSV/log summaries. Expect
 | GET | `/api/stats` | Corpus stats from `anomaly_results.csv`: `total_logs`, `detected_anomalies` (sum of `anomaly_prediction`), `actual_anomalies` (Label == Anomaly), `anomaly_rate` (detected/total × 100, 2 d.p.), `event_types`, `components`. |
 | GET | `/api/anomalies` | Query `limit` (1–200, default 20). Highest `anomaly_score` rows with `LineId`, `BlockId`, `EventId`, `Level`, `Component`, `Content`, `anomaly_score` (4 d.p.), `Label`. |
 | POST | `/api/retrain` | Runs `train_and_evaluate()` (about 13–20 seconds here) and returns a mixed payload (below). |
+| GET | `/api/hdfs-full-metrics` | Read-only measured HDFS_v1 results from `results/hdfs_full_metrics.json`. Does not retrain or touch the 2k CSV. |
 
 ### `/api/retrain` payload (do not mix these fields)
 
@@ -337,22 +339,23 @@ The seven flagged lines are high-score `E14` “Verification succeeded” events
 
 F1 rose from 0.0357 (in-sample baseline) / 0.0645 (fair baseline) to **0.1333** on the same test blocks, mainly from higher precision and lower FPR. Recall stayed **1 of 13** test anomalies (~7.7%). This is a modest, honest gain — not a strong detector.
 
-Last recorded full `train_and_evaluate()` wall time: **13.67 s** (`metrics.json`). Retrain in the browser has been observed around 13–19 s.
+Last recorded full `train_and_evaluate()` wall time is in `metrics.json` `processing_time_sec` (varies by machine; observed about 10–60 s, including baseline + grid search).
 
 ---
 
 ## 8. Dashboard functionality and screenshots to capture
 
-Implemented in `dashboard/index.html` (verified against the running API):
+Implemented in `dashboard/index.html` + `app.css` + `app.js` (Nexora Observability demo shell, verified against the running API):
 
-- Light background, navy typography, blue accents, card layout.
-- System status from `/api/health`; last-refreshed timestamp.
-- **Refresh Data** and **Retrain Model**, with loading / success / error banners.
-- Four live KPI cards from `/api/stats` (corpus).
+- Dark navy enterprise shell, mock sign-in, LIVE badge tied to `/api/health` (not a log stream).
+- Pages: Overview, Live Logs, Alerts & Detection Center, Anomaly Investigation, Model Evaluation, Activity History.
+- **Refresh** and **Retrain**, with wait overlay (no progress-stream endpoint), banners, and a flagged-count toast.
+- Four live KPI cards from `/api/stats` (corpus). Alerts totals use `detected_anomalies`, not `Label`.
 - Held-out evaluation panel, filled only after a successful `/api/retrain` in that browser session (`sessionStorage` key `hdfsEvalMetrics`).
 - Corpus stacked bar: detected vs remaining lines.
 - EventId and Component bars from the 20 `/api/anomalies` rows (not a full-corpus histogram). On the current scores those bars are E14 and `dfs.DataBlockScanner`.
 - Table of the eight `/api/anomalies` fields, with escaped cell text.
+- Charts use local `dashboard/chart.umd.min.js`.
 
 There are **no screenshot files in this repository**. For a viva or slide deck, capture:
 
@@ -378,8 +381,8 @@ Do not screenshot `/api/stats` counts and label them as test F1.
 - **First BlockId only** on multi-block delete lines.
 - **Dashboard ≠ academic score.** KPI cards are corpus flags (7 / 2000). Official metrics are 399 test blocks.
 - **`/api/retrain` mixes scopes** in one JSON object (documented above).
-- **`load_model` is unused** by the API. If the results CSV is missing or unreadable, `load_and_prepare()` has no `anomaly_prediction` and `/api/stats` can fail.
-- **Chart.js** is loaded from a CDN. Charts need network unless the browser has it cached.
+- If the results CSV is missing or unreadable, `load_and_prepare()` has no `anomaly_prediction` and `/api/stats` can fail. Keep a valid CSV for the demo.
+- **Google Fonts** still load from the network; the UI falls back to Segoe UI / system fonts.
 - **No automated test suite, Docker image, or remote deployment** is in this repo.
 
 ### Proposed future work (not implemented)
@@ -388,8 +391,8 @@ Do not screenshot `/api/stats` counts and label them as test F1.
 - Sequence or count-vector models (DeepLog-style, Drain + event histograms). These are **not** in the current code.
 - A dedicated evaluation endpoint that does not mix corpus counts with test confusion-matrix fields.
 - Persist last evaluation into a file the dashboard can read without retraining.
-- Wire `load_model()` for live scoring, or remove the unused import.
-- Offline Chart.js and a small pytest/API smoke test.
+- Wire `load_model()` for live scoring of new lines (the dashboard currently reads the results CSV).
+- A small pytest/API smoke test.
 
 ---
 
@@ -411,12 +414,14 @@ Pinned dependencies in `requirements.txt` are unversioned package names: `pandas
 
 ### Live-demo sequence (about 3–4 minutes)
 
+Follow `docs/PANEL_PRESENTATION.md` for the 8-minute panel version.
+
 1. Show `data/HDFS/HDFS_2k.log_structured.csv` and `anomaly_label.csv`. State: 2,000 lines, block-level labels, ~1 line per block.
-2. Open the dashboard. Point at **corpus** KPIs (2,000 / 7 / 0.35%). Say they are not test F1.
-3. Show health = online and last-refreshed.
-4. Click **Refresh Data**. Banner turns green; timestamp updates.
-5. Scroll the table (LineId, BlockId, EventId, score, Label, Content).
-6. Click **Retrain Model**. Wait ~15 s. Evaluation panel fills with held-out P/R/F1 (0.50 / 0.077 / 0.133).
+2. Open http://127.0.0.1:8000 → **Enter Demo Workspace**.
+3. Point at **corpus** KPIs (2,000 / 7 / 0.35%). Say they are not test F1. LIVE = API health.
+4. Click **Refresh**. Timestamp updates.
+5. Open **Alerts & Detection Center**: 7 model-flagged vs 69 labelled.
+6. Click **Retrain model**. Wait for the overlay. Model Evaluation fills with held-out P/R/F1 (0.50 / 0.077 / 0.133).
 7. Contrast: corpus 7 flags vs test 1 TP / 12 FN.
 8. Optional: open `results/metrics.json` and read the official block table aloud.
 9. Close by stating the limitation: Isolation Forest cannot recover HDFS sequence anomalies from single-line blocks.
@@ -453,7 +458,7 @@ Suggested slides: architecture diagram (section 2), split table, four-row metric
 12. Why is `HDFS_templates.csv` unused?
 13. What is in the Joblib bundle besides the sklearn pipeline?
 14. If `results/anomaly_results.csv` is deleted, what does the API do?
-15. Chart.js is loaded from a CDN. What happens to the charts if the classroom has no internet?
+15. Charts are bundled locally. What still needs network (Google Fonts), and what happens if fonts fail?
 
 ---
 
@@ -487,10 +492,10 @@ Also confirmed during earlier verification work (not re-run for this document’
 - **No published paper / citation list** is in the repo. Do not invent Loghub bibliography entries unless you add them from an external source yourself.
 - **No Docker, systemd, nginx, or cloud deploy config.**
 - **No pinned dependency versions** in `requirements.txt` (only package names). The environment used during development was Python 3.12 with whatever pip resolved at install time.
-- **Exact wall-clock time** varies (13–19 s observed). Use `metrics.json` `processing_time_sec` for the last run (13.67 s).
+- **Exact wall-clock time** varies by machine. Use `metrics.json` `processing_time_sec` for the last recorded full train (includes baseline + grid search).
 - **`models/` and `notebooks/`** have no project content.
-- **Full HDFS session traces** are not here, so sequence-model accuracy cannot be measured.
-- **Whether Chart.js is cached** on a given demo machine was not tested offline.
-- **`load_model()` live scoring** was not used by the API; only the CSV path was verified.
+- **Full HDFS session traces** as Drain event sequences are not in the 2k demo. A later streaming evaluation on `data/HDFS_full` is documented in `docs/HDFS_FULL_EVALUATION.md` and `results/hdfs_full_metrics.json`; it does not change the 2k API or Joblib bundle.
+- **Google Fonts** still need network; system fonts are the fallback.
+- **`load_model()` live scoring** is not used by the API; only the CSV path is used.
 
 If a slide or report needs a number that is not in `results/metrics.json` or this handoff, recompute it from the saved model rather than guessing.

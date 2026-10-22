@@ -21,6 +21,10 @@
   let overviewRows = [];
   let explorerRows = [];
   let lastStats = null;
+  let lastFullMetrics = null;
+  let lastFullLoadedAt = null;
+  let fullMetricsTask = null;
+  let fullMetricsCtrl = null;
   let explorerLoading = false;
   let retrainInFlight = false;
   let stageTimer = null;
@@ -95,8 +99,8 @@
     ["refreshBtn", "retrainBtn", "logsRefreshBtn", "evalRetrainBtn", "alertRetrainBtn"].forEach((id) => {
       if ($(id)) $(id).disabled = busy;
     });
-    document.querySelectorAll(".kpi-value-block").forEach((el) => { el.hidden = busy; });
-    document.querySelectorAll(".kpi-skeleton-block").forEach((el) => { el.hidden = !busy; });
+    document.querySelectorAll(".demo-scope .kpi-value-block").forEach((el) => { el.hidden = busy; });
+    document.querySelectorAll(".demo-scope .kpi-skeleton-block").forEach((el) => { el.hidden = !busy; });
   }
 
   function setHealth(ok, label) {
@@ -157,6 +161,242 @@
   function renderEval(metrics) {
     renderEvalInto("evalEmpty", "evalFilled", metrics);
     renderEvalInto("evalPageEmpty", "evalPageFilled", metrics);
+  }
+
+  function asFinite(value) {
+    const n = Number(value);
+    return Number.isFinite(n) ? n : null;
+  }
+
+  function fmtCount(value) {
+    const n = asFinite(value);
+    return n == null ? "n/a" : Math.round(n).toLocaleString();
+  }
+
+  function fmtPct(value) {
+    const n = asFinite(value);
+    return n == null ? "n/a" : (n * 100).toFixed(2) + "%";
+  }
+
+  function fmtScore(value) {
+    const n = asFinite(value);
+    return n == null ? "n/a" : n.toFixed(4);
+  }
+
+  function isFullReady(data) {
+    return !!(
+      data &&
+      data.available === true &&
+      data.evaluation === "held_out_test_blocks" &&
+      data.improved_held_out_blocks &&
+      typeof data.improved_held_out_blocks === "object"
+    );
+  }
+
+  function setHidden(id, hidden) {
+    const el = $(id);
+    if (el) el.hidden = hidden;
+  }
+
+  function setText(id, value) {
+    const el = $(id);
+    if (el) el.textContent = value;
+  }
+
+  function confusionHtml(block) {
+    const row = block && typeof block === "object" ? block : {};
+    return `
+      <div class="c-ok"><div class="hint">True pos.</div><strong>${fmtCount(row.tp)}</strong></div>
+      <div class="c-ok"><div class="hint">True neg.</div><strong>${fmtCount(row.tn)}</strong></div>
+      <div class="c-bad"><div class="hint">False pos.</div><strong>${fmtCount(row.fp)}</strong></div>
+      <div class="c-bad"><div class="hint">False neg.</div><strong>${fmtCount(row.fn)}</strong></div>
+    `;
+  }
+
+  function researchStatusLabel(kind, loadedAt) {
+    if (kind === "loading") return "Loading…";
+    if (kind === "ready" && loadedAt) return "Loaded " + loadedAt.toLocaleString();
+    if (kind === "ready") return "Loaded";
+    if (kind === "error") return "Unavailable";
+    return "Unavailable";
+  }
+
+  function renderFullMetricsState(kind, reason, data) {
+    const loading = kind === "loading";
+    const ready = kind === "ready" && isFullReady(data);
+    setHidden("researchLoading", !loading);
+    setHidden("researchUnavailable", loading || ready);
+    setHidden("researchFilled", !ready);
+    setHidden("fullEvalLoading", !loading);
+    setHidden("fullEvalEmpty", loading || ready);
+    setHidden("fullEvalFilled", !ready);
+    setText("researchStatus", researchStatusLabel(kind, lastFullLoadedAt));
+    setText("fullEvalStatus", researchStatusLabel(kind, lastFullLoadedAt));
+    if (!ready) {
+      const message = reason || "The full-corpus metrics endpoint did not return a usable result. The HDFS-2k demo is unaffected.";
+      setText("researchUnavailableReason", message);
+      setText("fullEvalEmptyReason", message);
+      return;
+    }
+    renderResearchOverview(data);
+    renderResearchEvaluation(data);
+  }
+
+  function renderResearchOverview(data) {
+    const ingest = data.ingest || {};
+    const split = data.split || {};
+    const improved = data.improved_held_out_blocks || {};
+    setText("rsRows", fmtCount(ingest.rows_read));
+    setText("rsBlocks", fmtCount(ingest.unique_blocks));
+    setText("rsAnoms", fmtCount(ingest.anomalous_blocks));
+    setText("rsTestBlocks", fmtCount(split.n_test_blocks));
+    setText("rsTestAnoms", fmtCount(split.n_test_anomalies));
+    setText("rsPrecision", fmtPct(improved.precision));
+    setText("rsRecall", fmtPct(improved.recall));
+    setText("rsF1", fmtPct(improved.f1));
+    setText("rsFpr", fmtPct(improved.false_positive_rate));
+    setText("rsPrauc", fmtScore(improved.pr_auc));
+    const tp = asFinite(improved.tp);
+    const fp = asFinite(improved.fp);
+    const fn = asFinite(improved.fn);
+    const tn = asFinite(improved.tn);
+    setText("rsPrecisionHint", tp != null && fp != null
+      ? fmtCount(tp) + " of " + fmtCount(tp + fp) + " predicted positives were correct"
+      : "Predicted positives that were correct");
+    setText("rsRecallHint", tp != null && fn != null
+      ? fmtCount(tp) + " of " + fmtCount(tp + fn) + " actual test anomalies found"
+      : "Actual test anomalies found");
+    setText("rsFprHint", fp != null && tn != null
+      ? fmtCount(fp) + " false positives among " + fmtCount(fp + tn) + " normal test blocks"
+      : "False alarms among normal test blocks");
+    const scopeBits = [
+      data.evaluation === "held_out_test_blocks" ? "Scope: held-out test blocks" : "",
+      data.scope ? "Run: " + data.scope : "",
+      ingest.truncated ? "Ingest was truncated" : "",
+      lastFullLoadedAt ? "Loaded from /api/hdfs-full-metrics at " + lastFullLoadedAt.toLocaleString() : "",
+      "Comparison with baseline is on Model Evaluation."
+    ].filter(Boolean);
+    setText("researchMetricScope", "Isolation Forest, improved settings, unseen test blocks only.");
+    setText("researchScopeNote", scopeBits.join(" · "));
+  }
+
+  function interpretComparison(improved, baseline) {
+    const notes = [];
+    const f1I = asFinite(improved.f1);
+    const f1B = asFinite(baseline && baseline.f1);
+    const prI = asFinite(improved.pr_auc);
+    const prB = asFinite(baseline && baseline.pr_auc);
+    if (f1I != null && f1B != null) {
+      const delta = f1I - f1B;
+      if (Math.abs(delta) < 0.005) {
+        notes.push("Held-out F1 is effectively tied (absolute delta under 0.005). That is not a proven overall improvement.");
+      } else if (delta > 0) {
+        notes.push("Measured held-out F1 is higher than the baseline. That is not by itself a claim of overall superiority.");
+      } else {
+        notes.push("Measured held-out F1 is lower than the baseline.");
+      }
+    }
+    if (prI != null && prB != null) {
+      if (prB - prI >= 0.05) {
+        notes.push("Baseline PR-AUC is substantially higher, so the baseline ranks test anomalies better.");
+      } else if (prI - prB >= 0.05) {
+        notes.push("Improved PR-AUC is substantially higher than the baseline.");
+      } else {
+        notes.push("PR-AUC is close between the two configurations.");
+      }
+    }
+    notes.push("The improved configuration reuses Isolation Forest settings selected on HDFS-2k. A full-corpus hyperparameter grid search has not been conducted.");
+    notes.push("Only held-out test metrics are shown here. Validation was used to pick the threshold and is not mixed into these scores.");
+    return notes;
+  }
+
+  function renderResearchEvaluation(data) {
+    const improved = data.improved_held_out_blocks || {};
+    const baseline = data.baseline_held_out_blocks && typeof data.baseline_held_out_blocks === "object"
+      ? data.baseline_held_out_blocks
+      : {};
+    const split = data.split || {};
+    const settings = data.settings || {};
+    const ingest = data.ingest || {};
+    const rows = [
+      ["Precision", fmtPct(improved.precision), fmtPct(baseline.precision)],
+      ["Recall", fmtPct(improved.recall), fmtPct(baseline.recall)],
+      ["F1-score", fmtPct(improved.f1), fmtPct(baseline.f1)],
+      ["False-positive rate", fmtPct(improved.false_positive_rate), fmtPct(baseline.false_positive_rate)],
+      ["PR-AUC", fmtScore(improved.pr_auc), fmtScore(baseline.pr_auc)]
+    ];
+    const body = $("compareRows");
+    if (body) {
+      body.innerHTML = rows.map((row) => (
+        `<tr><th scope="row">${esc(row[0])}</th><td>${esc(row[1])}</td><td>${esc(row[2])}</td></tr>`
+      )).join("");
+    }
+    setText("compareCaption", [
+      "Held-out test blocks only",
+      split.n_test_blocks != null ? fmtCount(split.n_test_blocks) + " blocks" : "",
+      split.n_test_anomalies != null ? fmtCount(split.n_test_anomalies) + " anomalies" : "",
+      data.scope ? "run=" + data.scope : ""
+    ].filter(Boolean).join(" · "));
+    const improvedBox = $("improvedConfusion");
+    const baselineBox = $("baselineConfusion");
+    if (improvedBox) improvedBox.innerHTML = confusionHtml(improved);
+    if (baselineBox) baselineBox.innerHTML = confusionHtml(baseline);
+    const interp = $("researchInterp");
+    if (interp) {
+      interp.innerHTML = "<h3>How to read this comparison</h3>" +
+        interpretComparison(improved, baseline).map((item) => `<p>${esc(item)}</p>`).join("");
+    }
+    const settingLine = [
+      settings.train_on ? "train_on=" + settings.train_on : "",
+      settings.n_estimators ? "n_estimators=" + settings.n_estimators : "",
+      settings.max_samples ? "max_samples=" + settings.max_samples : "",
+      settings.decision_threshold != null && asFinite(settings.decision_threshold) != null
+        ? "threshold=" + asFinite(settings.decision_threshold).toFixed(6)
+        : "",
+      ingest.rows_read != null ? "rows=" + fmtCount(ingest.rows_read) : "",
+      lastFullLoadedAt ? "loaded " + lastFullLoadedAt.toLocaleString() : ""
+    ].filter(Boolean).join(" · ");
+    setText("researchSettings", settingLine);
+    const limits = $("researchLimits");
+    if (limits) {
+      const items = Array.isArray(data.limitations) ? data.limitations : [];
+      limits.innerHTML = items.map((item) => `<li>${esc(item)}</li>`).join("");
+    }
+  }
+
+  function loadFullMetrics() {
+    if (fullMetricsTask) return fullMetricsTask;
+    if (fullMetricsCtrl) fullMetricsCtrl.abort();
+    fullMetricsCtrl = new AbortController();
+    const signal = fullMetricsCtrl.signal;
+    renderFullMetricsState("loading");
+    fullMetricsTask = fetchJson("/api/hdfs-full-metrics", { signal })
+      .then((data) => {
+        if (!isFullReady(data)) {
+          lastFullMetrics = null;
+          lastFullLoadedAt = null;
+          renderFullMetricsState(
+            "unavailable",
+            (data && data.reason) || "The endpoint did not return held-out HDFS_v1 results."
+          );
+          return null;
+        }
+        lastFullMetrics = data;
+        lastFullLoadedAt = new Date();
+        renderFullMetricsState("ready", null, data);
+        return data;
+      })
+      .catch((err) => {
+        if (err && err.name === "AbortError") return null;
+        lastFullMetrics = null;
+        lastFullLoadedAt = null;
+        renderFullMetricsState("error", err && err.message ? err.message : "Research metrics request failed.");
+        return null;
+      })
+      .finally(() => {
+        fullMetricsTask = null;
+      });
+    return fullMetricsTask;
   }
 
   function rowHtml(row, compact) {
@@ -408,7 +648,8 @@
       const [health, stats, anomalies] = await Promise.all([
         fetchJson("/api/health"),
         fetchJson("/api/stats"),
-        fetchJson("/api/anomalies?limit=20")
+        fetchJson("/api/anomalies?limit=20"),
+        loadFullMetrics()
       ]);
       const healthy = health && health.status === "ok";
       setHealth(healthy, healthy ? "LIVE" : "Offline");
@@ -718,6 +959,7 @@
 
   function signOut() {
     sessionStorage.removeItem(SESSION_KEY);
+    if (fullMetricsCtrl) fullMetricsCtrl.abort();
     addActivity("auth", "Demo sign-out", "Local mock session cleared. Evaluation metrics in sessionStorage were kept.");
     closeDrawer();
     closeMenus();
