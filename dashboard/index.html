@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Nexora Observability — Demo Workspace</title>
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/app.css" />
+  <link rel="stylesheet" href="/static/app.css?v=hdfs-full-1" />
   <script src="/static/chart.umd.min.js"></script>
 </head>
 <body>
@@ -116,8 +116,15 @@
             <strong>Nexora Technologies</strong>
             <span>/</span>
             <span>Production Infrastructure</span>
-            <span class="pill demo">Demo / HDFS-2k</span>
+            <span id="datasetPill" class="pill demo">Demo / HDFS-2k</span>
           </div>
+          <label class="dataset-switch" for="datasetSelect">
+            <span>Dataset</span>
+            <select id="datasetSelect" aria-label="Dataset">
+              <option value="demo">Demo Dataset — HDFS-2k</option>
+              <option value="full">Research Dataset — Full HDFS_v1</option>
+            </select>
+          </label>
         </div>
         <div class="topbar-right">
           <div id="healthPill" class="live-badge" data-live title="Connected to the live FastAPI backend. Not a real-time log stream.">
@@ -155,7 +162,7 @@
           <div class="page-head">
             <div>
               <h1>Overview</h1>
-              <p class="sub">Two scopes on this page: the HDFS_v1 research benchmark from <code>/api/hdfs-full-metrics</code>, and the live HDFS-2k demo from <code>/api/stats</code>.</p>
+              <p id="overviewSub" class="sub">Two scopes on this page: the HDFS_v1 research benchmark from <code>/api/hdfs-full-metrics</code>, and the live HDFS-2k demo from <code>/api/stats</code>.</p>
             </div>
             <div class="toolbar page-actions">
               <span class="chip">Updated<span id="refreshed">—</span></span>
@@ -247,9 +254,9 @@
           <section class="demo-scope" aria-labelledby="demoTitle">
             <div class="scope-head">
               <div>
-                <span class="pill demo">Demo</span>
+                <span id="demoScopePill" class="pill demo">Demo</span>
                 <h2 id="demoTitle" class="section-title">HDFS-2k Demo</h2>
-                <p class="sub">Operational corpus view from <code>/api/stats</code> and <code>/api/anomalies</code>. Retrain still trains this 2k sample only.</p>
+                <p id="demoSub" class="sub">Operational corpus view from <code>/api/stats</code> and <code>/api/anomalies</code>. Retrain still trains this 2k sample only.</p>
               </div>
             </div>
           <div class="kpis" aria-label="Corpus statistics">
@@ -257,22 +264,22 @@
               <div class="kpi-top"><span class="kpi-label">Total logs</span><span class="kpi-icon" aria-hidden="true"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 12h16M4 18h10"/></svg></span></div>
               <div class="kpi-value-block"><div id="total" class="kpi-value">—</div></div>
               <div class="kpi-skeleton-block" hidden><div class="skeleton"></div></div>
-              <div class="kpi-foot">All scored HDFS-2k log lines</div>
+              <div class="kpi-foot" id="kpiTotalFoot">All scored HDFS-2k log lines</div>
             </article>
             <article class="tech-card kpi">
-              <div class="kpi-top"><span class="kpi-label">Detected anomalies</span><span class="kpi-icon" aria-hidden="true"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v4m0 4h.01M10.3 4.3L2.6 18a2 2 0 001.7 3h15.4a2 2 0 001.7-3L13.7 4.3a2 2 0 00-3.4 0z"/></svg></span></div>
+              <div class="kpi-top"><span class="kpi-label" id="kpiDetectedLabel">Detected anomalies</span><span class="kpi-icon" aria-hidden="true"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v4m0 4h.01M10.3 4.3L2.6 18a2 2 0 001.7 3h15.4a2 2 0 001.7-3L13.7 4.3a2 2 0 00-3.4 0z"/></svg></span></div>
               <div class="kpi-value-block"><div id="detected" class="kpi-value">—</div></div>
               <div class="kpi-skeleton-block" hidden><div class="skeleton"></div></div>
               <div class="kpi-foot" id="actualHint">Model flags on the full corpus</div>
             </article>
             <article class="tech-card kpi">
-              <div class="kpi-top"><span class="kpi-label">Anomaly rate</span><span class="kpi-icon" aria-hidden="true"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 16l5-5 4 4 7-8"/></svg></span></div>
+              <div class="kpi-top"><span class="kpi-label" id="kpiRateLabel">Anomaly rate</span><span class="kpi-icon" aria-hidden="true"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 16l5-5 4 4 7-8"/></svg></span></div>
               <div class="kpi-value-block"><div id="rate" class="kpi-value accent">—</div></div>
               <div class="kpi-skeleton-block" hidden><div class="skeleton"></div></div>
               <div class="kpi-foot" id="rateHint">Detected ÷ total · not F1</div>
             </article>
             <article class="tech-card kpi">
-              <div class="kpi-top"><span class="kpi-label">Event types</span><span class="kpi-icon" aria-hidden="true"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h7v7H4zM13 6h7v4h-7zM13 12h7v6h-7zM4 15h7v3H4z"/></svg></span></div>
+              <div class="kpi-top"><span class="kpi-label" id="kpiEventsLabel">Event types</span><span class="kpi-icon" aria-hidden="true"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h7v7H4zM13 6h7v4h-7zM13 12h7v6h-7zM4 15h7v3H4z"/></svg></span></div>
               <div class="kpi-value-block"><div id="events" class="kpi-value">—</div></div>
               <div class="kpi-skeleton-block" hidden><div class="skeleton"></div></div>
               <div class="kpi-foot" id="compHint">Unique EventId values in the corpus</div>
@@ -294,28 +301,28 @@
               <p class="eval-note">Do not compare these scores with the corpus KPI cards. They measure different things.</p>
             </section>
             <section class="tech-card chart-card">
-              <h2 class="section-title">Corpus anomaly distribution</h2>
-              <p class="sub">Full 2,000-line HDFS-2k corpus from /api/stats · not held-out F1</p>
+              <h2 id="distChartTitle" class="section-title">Corpus anomaly distribution</h2>
+              <p id="distChartSub" class="sub">Full 2,000-line HDFS-2k corpus from /api/stats · not held-out F1</p>
               <div class="chart-box h-bar"><canvas id="distChart"></canvas></div>
             </section>
           </div>
           <div class="split charts-row">
             <section class="tech-card chart-card">
-              <h2 class="section-title">Highest anomaly scores</h2>
-              <p class="sub">Top 10 of 20 rows from /api/anomalies?limit=20, ranked by score and labelled by LineId</p>
+              <h2 id="scoreChartTitle" class="section-title">Highest anomaly scores</h2>
+              <p id="scoreChartSub" class="sub">Top 10 of 20 rows from /api/anomalies?limit=20, ranked by score and labelled by LineId</p>
               <div class="chart-box h-score"><canvas id="scoreChart"></canvas></div>
             </section>
             <section class="tech-card chart-card">
-              <h2 class="section-title">Ground-truth labels</h2>
-              <p class="sub">Normal vs Anomaly among the same 20 highest-scoring rows</p>
+              <h2 id="labelChartTitle" class="section-title">Ground-truth labels</h2>
+              <p id="labelChartSub" class="sub">Normal vs Anomaly among the same 20 highest-scoring rows</p>
               <div class="chart-box h-label"><canvas id="labelChart"></canvas></div>
             </section>
           </div>
           <section class="tech-card table-card">
             <div class="table-head">
               <div>
-                <h2 class="section-title">Highest-scoring log lines</h2>
-                <p class="sub">A high score is a model ranking, not proof of a confirmed incident. Click a row for details.</p>
+                <h2 id="overviewTableTitle" class="section-title">Highest-scoring log lines</h2>
+                <p id="overviewTableSub" class="sub">A high score is a model ranking, not proof of a confirmed incident. Click a row for details.</p>
               </div>
               <div class="filters" role="group" aria-label="Filter by label">
                 <button type="button" id="filterAll" class="active">All</button>
@@ -361,12 +368,12 @@
                   <span data-live-text>LIVE</span>
                 </span>
               </div>
-              <p class="sub">Highest-scoring lines from the anomalies API. Maximum 200 rows — not a live stream and not the full 2,000-line corpus.</p>
+              <p id="logsSub" class="sub">Highest-scoring lines from the anomalies API. Maximum 200 rows — not a live stream and not the full 2,000-line corpus.</p>
             </div>
             <button id="logsRefreshBtn" class="btn" type="button">Reload explorer</button>
           </div>
           <div class="tech-card note-card spaced">
-            This explorer reads scored HDFS-2k lines from the existing endpoint. There is no simulated real-time tail.
+            <span id="logsNote">This explorer reads scored HDFS-2k lines from the existing endpoint. There is no simulated real-time tail.</span>
           </div>
           <div class="toolbar">
             <input id="logSearch" type="search" placeholder="Search Line ID, block, event, component, or content" />
@@ -400,6 +407,11 @@
             <div class="table-foot">
               <span id="logCount"></span>
               <span>Click a row to open details</span>
+              <div id="fullPager" class="pager" hidden>
+                <button id="logsPrevBtn" class="btn" type="button">Previous</button>
+                <span id="logsPageHint" class="hint"></span>
+                <button id="logsNextBtn" class="btn" type="button">Next page</button>
+              </div>
             </div>
           </section>
         </section>
@@ -417,7 +429,7 @@
                   <span data-live-text>LIVE</span>
                 </span>
               </div>
-              <p class="sub">Model-flagged records from the live corpus APIs. Flags are candidate anomalies, not confirmed incidents.</p>
+              <p id="alertSub" class="sub">Model-flagged records from the live corpus APIs. Flags are candidate anomalies, not confirmed incidents.</p>
             </div>
             <div class="toolbar page-actions">
               <button id="alertRetrainBtn" class="btn primary" type="button">Retrain model</button>
@@ -427,19 +439,19 @@
           <div id="alertStatusCard" class="tech-card alert-status"></div>
           <div class="kpis alert-kpis" aria-label="Detection counts">
             <article class="tech-card kpi">
-              <div class="kpi-top"><span class="kpi-label">Model-flagged records</span></div>
+              <div class="kpi-top"><span class="kpi-label" id="alertFlaggedLabel">Model-flagged records</span></div>
               <div id="alertFlagged" class="kpi-value accent">—</div>
-              <div class="kpi-foot">Corpus <code>anomaly_prediction</code> count from /api/stats</div>
+              <div class="kpi-foot" id="alertFlaggedFoot">Corpus <code>anomaly_prediction</code> count from /api/stats</div>
             </article>
             <article class="tech-card kpi">
               <div class="kpi-top"><span class="kpi-label">Labelled anomalies</span></div>
               <div id="alertActual" class="kpi-value">—</div>
-              <div class="kpi-foot">Ground-truth Label = Anomaly · not the model output</div>
+              <div class="kpi-foot" id="alertActualFoot">Ground-truth Label = Anomaly · not the model output</div>
             </article>
             <article class="tech-card kpi">
               <div class="kpi-top"><span class="kpi-label">Corpus lines</span></div>
               <div id="alertTotal" class="kpi-value">—</div>
-              <div class="kpi-foot">All scored HDFS-2k lines in the saved results</div>
+              <div class="kpi-foot" id="alertTotalFoot">All scored HDFS-2k lines in the saved results</div>
             </article>
             <article class="tech-card kpi">
               <div class="kpi-top"><span class="kpi-label">Last run</span></div>
@@ -451,8 +463,8 @@
             <section class="tech-card table-card">
               <div class="table-head">
                 <div>
-                  <h2 class="section-title">Highest-scoring sample</h2>
-                  <p class="sub">Rows from /api/anomalies, ranked by score. This is not the complete flagged set. Ground-truth Label is not the model prediction.</p>
+                  <h2 id="alertSampleTitle" class="section-title">Highest-scoring sample</h2>
+                  <p id="alertSampleSub" class="sub">Rows from /api/anomalies, ranked by score. This is not the complete flagged set. Ground-truth Label is not the model prediction.</p>
                 </div>
               </div>
               <div class="table-scroll">
@@ -493,12 +505,16 @@
           <div class="page-head">
             <div>
               <h1>Anomaly Investigation</h1>
-              <p class="sub">Review high-scoring lines against ground-truth labels. The model does not explain cause.</p>
+              <p id="invSub" class="sub">Review high-scoring lines against ground-truth labels. The model does not explain cause.</p>
             </div>
           </div>
           <div class="tech-card note-card spaced">
             <h3>Score is not a confirmed incident</h3>
-            Anomaly score ranks how quickly Isolation Forest isolated the line. It is not proof that the event is malicious. Most top-scoring HDFS-2k lines here have ground-truth Label = Normal.
+            <span id="invNote">Anomaly score ranks how quickly Isolation Forest isolated the line. It is not proof that the event is malicious. Most top-scoring HDFS-2k lines here have ground-truth Label = Normal.</span>
+          </div>
+          <div id="fullInvToolbar" class="toolbar" hidden>
+            <input id="invBlockId" type="search" placeholder="Look up a BlockId from the parquet, e.g. blk_-1608999687919862906" />
+            <button id="invBlockBtn" class="btn primary" type="button">Load block</button>
           </div>
           <div class="toolbar">
             <input id="invSearch" type="search" placeholder="Filter investigation rows" />
@@ -668,6 +684,6 @@
     <button id="toastClose" class="icon-btn" type="button" aria-label="Dismiss notice">✕</button>
   </div>
 
-  <script src="/static/app.js"></script>
+  <script src="/static/app.js?v=hdfs-full-1"></script>
 </body>
 </html>

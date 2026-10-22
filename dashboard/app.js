@@ -15,6 +15,7 @@
   const ACTIVITY_KEY = "nexoraDemoActivity";
   const NOTIFY_KEY = "nexoraDemoNotices";
   const RUNS_KEY = "nexoraDemoDetectionRuns";
+  const DATASET_KEY = "nexoraDatasetMode";
   const VIEWS = ["overview", "logs", "alerts", "investigate", "evaluation", "activity"];
 
   let distChart, scoreChart, labelChart;
@@ -31,6 +32,10 @@
   let labelFilter = "ALL";
   let selectedLineId = null;
   let bannerTimer = null;
+  let fullAfterLine = 0;
+  let fullCursorStack = [0];
+  let fullHasMore = false;
+  let fullSearchTimer = null;
 
   const $ = (id) => document.getElementById(id);
   const esc = (value) => String(value ?? "").replace(/[&<>"']/g, (ch) => ({
@@ -95,9 +100,103 @@
     }
   }
 
+  function isFullMode() {
+    return sessionStorage.getItem(DATASET_KEY) === "full";
+  }
+
+  function resetFullCursor() {
+    fullAfterLine = 0;
+    fullCursorStack = [0];
+    fullHasMore = false;
+  }
+
+  function scoreText(row) {
+    return row.anomaly_score == null || row.anomaly_score === "" ? "—" : row.anomaly_score;
+  }
+
+  function applyDatasetChrome() {
+    const full = isFullMode();
+    const select = $("datasetSelect");
+    if (select && select.value !== (full ? "full" : "demo")) select.value = full ? "full" : "demo";
+    const pill = $("datasetPill");
+    if (pill) {
+      pill.textContent = full ? "Research / Full HDFS_v1" : "Demo / HDFS-2k";
+      pill.className = "pill " + (full ? "research" : "demo");
+    }
+    const scopePill = $("demoScopePill");
+    if (scopePill) {
+      scopePill.textContent = full ? "Research" : "Demo";
+      scopePill.className = "pill " + (full ? "research" : "demo");
+    }
+    setText("overviewSub", full
+      ? "Full HDFS_v1 parquet is the live corpus on this page. Held-out Isolation Forest metrics remain in the research cards. Per-line model scores are not stored for this corpus."
+      : "Two scopes on this page: the HDFS_v1 research benchmark from /api/hdfs-full-metrics, and the live HDFS-2k demo from /api/stats.");
+    setText("demoTitle", full ? "Full HDFS_v1 corpus" : "HDFS-2k Demo");
+    setText("demoSub", full
+      ? "Paginated parquet browse from /api/hdfs-full/logs. Labels are ground truth. Isolation Forest line scores were not saved for this corpus. Retrain still trains HDFS-2k only."
+      : "Operational corpus view from /api/stats and /api/anomalies. Retrain still trains this 2k sample only.");
+    setText("logsSub", full
+      ? "Keyset-paginated parquet rows. Search and filters run on the server. This is not a live tail and not Isolation Forest score ranking."
+      : "Highest-scoring lines from the anomalies API. Maximum 200 rows — not a live stream and not the full 2,000-line corpus.");
+    setText("logsNote", full
+      ? "Label is parquet ground truth copied onto each line of a block. anomaly_score and model_prediction are not available because per-line Isolation Forest scores were not saved for HDFS_v1."
+      : "This explorer reads scored HDFS-2k lines from the existing endpoint. There is no simulated real-time tail.");
+    setText("alertSub", full
+      ? "Ground-truth labelled anomalous blocks from the parquet corpus. Isolation Forest detections are not stored per line for HDFS_v1. Retrain remains HDFS-2k only."
+      : "Model-flagged records from the live corpus APIs. Flags are candidate anomalies, not confirmed incidents.");
+    setText("invSub", full
+      ? "Investigate a BlockId against parquet ground truth. The model has not scored these individual lines."
+      : "Review high-scoring lines against ground-truth labels. The model does not explain cause.");
+    setText("invNote", full
+      ? "HDFS_v1 evaluation is block-level. Line labels here copy the block ground-truth flag. They are not Isolation Forest detections."
+      : "Anomaly score ranks how quickly Isolation Forest isolated the line. It is not proof that the event is malicious. Most top-scoring HDFS-2k lines here have ground-truth Label = Normal.");
+    setText("kpiDetectedLabel", full ? "Anomalous blocks" : "Detected anomalies");
+    setText("kpiRateLabel", full ? "Block anomaly rate" : "Anomaly rate");
+    setText("kpiEventsLabel", full ? "Unique blocks" : "Event types");
+    setText("kpiTotalFoot", full ? "Parquet metadata row count" : "All scored HDFS-2k log lines");
+    setText("alertFlaggedLabel", full ? "Model detections" : "Model-flagged records");
+    setText("alertFlaggedFoot", full ? "Not stored per HDFS_v1 line" : "Corpus anomaly_prediction count from /api/stats");
+    setText("alertActualFoot", full ? "Ground-truth anomalous blocks from ingest metadata" : "Ground-truth Label = Anomaly · not the model output");
+    setText("alertTotalFoot", full ? "Parquet metadata row count for HDFS_v1" : "All scored HDFS-2k lines in the saved results");
+    setText("alertSampleTitle", full ? "Parquet sample" : "Highest-scoring sample");
+    setText("alertSampleSub", full
+      ? "Rows from /api/hdfs-full/logs. Label is ground truth. Scores are not available."
+      : "Rows from /api/anomalies, ranked by score. This is not the complete flagged set. Ground-truth Label is not the model prediction.");
+    setText("distChartTitle", full ? "Ground-truth anomalous blocks" : "Corpus anomaly distribution");
+    setText("distChartSub", full
+      ? "Unique blocks from saved ingest metadata · not Isolation Forest detections"
+      : "Full 2,000-line HDFS-2k corpus from /api/stats · not held-out F1");
+    setText("scoreChartTitle", full ? "Sample ground-truth flags" : "Highest anomaly scores");
+    setText("scoreChartSub", full
+      ? "First 10 parquet rows on this overview page as 1 = Anomaly, 0 = Normal. Not model scores."
+      : "Top 10 of 20 rows from /api/anomalies?limit=20, ranked by score and labelled by LineId");
+    setText("labelChartTitle", full ? "Ground-truth labels" : "Ground-truth labels");
+    setText("labelChartSub", full
+      ? "Normal vs Anomaly among the overview parquet sample, not the full 11M-line corpus"
+      : "Normal vs Anomaly among the same 20 highest-scoring rows");
+    setText("overviewTableTitle", full ? "Parquet log sample" : "Highest-scoring log lines");
+    setText("overviewTableSub", full
+      ? "First page of parquet rows. Label is ground truth. Score is not available. Click a row for details."
+      : "A high score is a model ranking, not proof of a confirmed incident. Click a row for details.");
+    if (full && $("sortLogs") && String($("sortLogs").value).indexOf("score") === 0) {
+      $("sortLogs").value = "line-asc";
+    }
+    setHidden("fullPager", !full);
+    setHidden("fullInvToolbar", !full);
+    ["retrainBtn", "evalRetrainBtn", "alertRetrainBtn"].forEach((id) => {
+      const el = $(id);
+      if (!el) return;
+      el.disabled = full;
+      el.title = full ? "Retrain trains HDFS-2k only. Switch to the demo dataset to retrain." : "";
+    });
+  }
+
   function setBusy(busy) {
-    ["refreshBtn", "retrainBtn", "logsRefreshBtn", "evalRetrainBtn", "alertRetrainBtn"].forEach((id) => {
+    ["refreshBtn", "logsRefreshBtn"].forEach((id) => {
       if ($(id)) $(id).disabled = busy;
+    });
+    ["retrainBtn", "evalRetrainBtn", "alertRetrainBtn"].forEach((id) => {
+      if ($(id)) $(id).disabled = busy || isFullMode();
     });
     document.querySelectorAll(".demo-scope .kpi-value-block").forEach((el) => { el.hidden = busy; });
     document.querySelectorAll(".demo-scope .kpi-skeleton-block").forEach((el) => { el.hidden = !busy; });
@@ -409,7 +508,7 @@
         <td class="col-event">${esc(row.EventId)}</td>
         <td class="col-level"><span class="pill ${levelClass}">${esc(row.Level)}</span></td>
         <td class="col-comp">${esc(row.Component)}</td>
-        <td class="col-score">${esc(row.anomaly_score)}</td>
+        <td class="col-score">${esc(scoreText(row))}</td>
         <td class="col-label"><span class="pill ${labelClass}">${esc(row.Label)}</span></td>
         <td class="msg" title="${esc(row.Content)}">${esc(row.Content)}</td>
       </tr>`;
@@ -420,7 +519,7 @@
       <td class="col-event">${esc(row.EventId)}</td>
       <td class="col-level"><span class="pill ${levelClass}">${esc(row.Level)}</span></td>
       <td class="col-comp">${esc(row.Component)}</td>
-      <td class="col-score">${esc(row.anomaly_score)}</td>
+      <td class="col-score">${esc(scoreText(row))}</td>
       <td class="col-label"><span class="pill ${labelClass}">${esc(row.Label)}</span></td>
       <td class="msg" title="${esc(row.Content)}">${esc(row.Content)}</td>
     </tr>`;
@@ -435,14 +534,26 @@
     $("filterAnomaly").textContent = "Anomaly (" + overviewRows.filter((r) => r.Label === "Anomaly").length + ")";
     $("rows").innerHTML = filtered.length
       ? filtered.map((row) => rowHtml(row, false)).join("")
-      : `<tr><td colspan="8" class="msg">No scored lines returned for this filter.</td></tr>`;
+      : `<tr><td colspan="8" class="msg">${isFullMode() ? "No parquet rows returned for this filter." : "No scored lines returned for this filter."}</td></tr>`;
+  }
+
+  function applyExplorerSort(rows) {
+    const sort = $("sortLogs").value;
+    const next = rows.slice();
+    next.sort((a, b) => {
+      if (sort === "line-asc") return Number(a.LineId) - Number(b.LineId);
+      if (sort === "line-desc") return Number(b.LineId) - Number(a.LineId);
+      if (isFullMode()) return Number(a.LineId) - Number(b.LineId);
+      if (sort === "score-asc") return Number(a.anomaly_score) - Number(b.anomaly_score);
+      return Number(b.anomaly_score) - Number(a.anomaly_score);
+    });
+    return next;
   }
 
   function applyExplorerFilters(rows) {
     const q = ($("logSearch").value || "").trim().toLowerCase();
     const level = $("levelFilter").value;
     const label = $("labelFilterLogs").value;
-    const sort = $("sortLogs").value;
     let next = rows.filter((row) => {
       const hay = [row.LineId, row.BlockId, row.EventId, row.Level, row.Component, row.anomaly_score, row.Label, row.Content]
         .join(" ").toLowerCase();
@@ -451,25 +562,26 @@
       if (label && row.Label !== label) return false;
       return true;
     });
-    next.sort((a, b) => {
-      if (sort === "score-asc") return Number(a.anomaly_score) - Number(b.anomaly_score);
-      if (sort === "line-asc") return Number(a.LineId) - Number(b.LineId);
-      if (sort === "line-desc") return Number(b.LineId) - Number(a.LineId);
-      return Number(b.anomaly_score) - Number(a.anomaly_score);
-    });
-    return next;
+    return applyExplorerSort(next);
   }
 
   function renderLogs() {
-    if (!$("levelFilter").options.length || $("levelFilter").options.length === 1) {
-      const levels = [...new Set(explorerRows.map((r) => r.Level).filter(Boolean))].sort();
+    const currentLevel = $("levelFilter").value;
+    if (isFullMode() || !$("levelFilter").options.length || $("levelFilter").options.length === 1) {
+      const seed = isFullMode() ? ["INFO", "WARN", "ERROR"] : [];
+      const levels = [...new Set(seed.concat(explorerRows.map((r) => r.Level).filter(Boolean)))].sort();
       $("levelFilter").innerHTML = `<option value="">All levels</option>` + levels.map((lv) => `<option>${esc(lv)}</option>`).join("");
+      if (currentLevel) $("levelFilter").value = currentLevel;
     }
-    const filtered = applyExplorerFilters(explorerRows);
+    const filtered = isFullMode() ? applyExplorerSort(explorerRows) : applyExplorerFilters(explorerRows);
     $("logRows").innerHTML = filtered.length
       ? filtered.map((row) => rowHtml(row, false)).join("")
-      : `<tr><td colspan="8" class="msg">No rows match this search or filter. The explorer only contains API-returned scored lines.</td></tr>`;
-    $("logCount").textContent = `Showing ${filtered.length} of ${explorerRows.length} API rows (limit 200 maximum)`;
+      : `<tr><td colspan="8" class="msg">${isFullMode() ? "No parquet rows match this search or filter." : "No rows match this search or filter. The explorer only contains API-returned scored lines."}</td></tr>`;
+    $("logCount").textContent = isFullMode()
+      ? (filtered.length ? `Showing ${filtered.length} parquet rows on this page` : "No parquet rows on this page")
+      : `Showing ${filtered.length} of ${explorerRows.length} API rows (limit 200 maximum)`;
+    if ($("logsPrevBtn")) $("logsPrevBtn").disabled = !isFullMode() || fullCursorStack.length <= 1;
+    if ($("logsNextBtn")) $("logsNextBtn").disabled = !isFullMode() || !fullHasMore;
   }
 
   function renderInvestigation() {
@@ -483,12 +595,14 @@
       rows = anomalies.concat(others);
     }
     if (q) {
-      rows = rows.filter((row) => [row.LineId, row.EventId, row.Component, row.Content, row.Label].join(" ").toLowerCase().includes(q));
+      rows = rows.filter((row) => [row.LineId, row.EventId, row.Component, row.Content, row.Label, row.BlockId].join(" ").toLowerCase().includes(q));
     }
     $("invRows").innerHTML = rows.length
       ? rows.map((row) => rowHtml(row, true)).join("")
-      : `<tr><td colspan="7" class="msg">No investigation rows available from the anomalies API.</td></tr>`;
-    $("invCount").textContent = `${rows.length} rows from GET /api/anomalies · demo investigation workspace`;
+      : `<tr><td colspan="7" class="msg">${isFullMode() ? "No parquet rows in this investigation view. Load a BlockId or change the explorer filter." : "No investigation rows available from the anomalies API."}</td></tr>`;
+    $("invCount").textContent = isFullMode()
+      ? `${rows.length} parquet rows · ground-truth labels · no per-line Isolation Forest scores`
+      : `${rows.length} rows from GET /api/anomalies · demo investigation workspace`;
   }
 
   function renderCharts(stats, rows) {
@@ -496,41 +610,70 @@
     Chart.defaults.borderColor = "#1e2a3c";
     Chart.defaults.font.family = "Inter, Segoe UI, sans-serif";
     const navy = "#e8eef6", accent = "#3b82f6", muted = "#334155", danger = "#ef4444", ok = "#22c55e";
-    const remaining = Math.max((stats.total_logs || 0) - (stats.detected_anomalies || 0), 0);
+    const full = isFullMode() || stats.dataset === "HDFS_v1";
     if (distChart) distChart.destroy();
-    distChart = new Chart($("distChart"), {
-      type: "bar",
-      data: {
-        labels: ["2,000-line corpus"],
-        datasets: [
-          { label: "Detected anomalies", data: [stats.detected_anomalies], backgroundColor: danger, minBarLength: 10, barThickness: 26 },
-          { label: "Remaining log lines", data: [remaining], backgroundColor: muted, barThickness: 26 }
-        ]
-      },
-      options: {
-        indexAxis: "y", responsive: true, maintainAspectRatio: false,
-        plugins: {
-          legend: { position: "bottom", labels: { color: navy, boxWidth: 10 } },
-          tooltip: { callbacks: { afterBody: () => "Corpus view from /api/stats; not held-out F1." } }
+    if (full) {
+      const unique = Number(stats.unique_blocks) || 0;
+      const labelled = Number(stats.actual_anomalies) || 0;
+      distChart = new Chart($("distChart"), {
+        type: "bar",
+        data: {
+          labels: ["Unique blocks"],
+          datasets: [
+            { label: "Ground-truth anomalous blocks", data: [labelled], backgroundColor: danger, minBarLength: 10, barThickness: 26 },
+            { label: "Remaining blocks", data: [Math.max(unique - labelled, 0)], backgroundColor: muted, barThickness: 26 }
+          ]
         },
-        scales: {
-          x: { stacked: true, beginAtZero: true, ticks: { color: navy } },
-          y: { stacked: true, display: false }
+        options: {
+          indexAxis: "y", responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { position: "bottom", labels: { color: navy, boxWidth: 10 } },
+            tooltip: { callbacks: { afterBody: () => "Ground-truth ingest counts, not Isolation Forest detections." } }
+          },
+          scales: {
+            x: { stacked: true, beginAtZero: true, ticks: { color: navy } },
+            y: { stacked: true, display: false }
+          }
         }
-      }
-    });
-    const topScores = rows.slice().sort((a, b) => Number(b.anomaly_score) - Number(a.anomaly_score)).slice(0, 10);
-    const scoreVals = topScores.map((row) => Number(row.anomaly_score));
+      });
+    } else {
+      const remaining = Math.max((stats.total_logs || 0) - (stats.detected_anomalies || 0), 0);
+      distChart = new Chart($("distChart"), {
+        type: "bar",
+        data: {
+          labels: ["2,000-line corpus"],
+          datasets: [
+            { label: "Detected anomalies", data: [stats.detected_anomalies], backgroundColor: danger, minBarLength: 10, barThickness: 26 },
+            { label: "Remaining log lines", data: [remaining], backgroundColor: muted, barThickness: 26 }
+          ]
+        },
+        options: {
+          indexAxis: "y", responsive: true, maintainAspectRatio: false,
+          plugins: {
+            legend: { position: "bottom", labels: { color: navy, boxWidth: 10 } },
+            tooltip: { callbacks: { afterBody: () => "Corpus view from /api/stats; not held-out F1." } }
+          },
+          scales: {
+            x: { stacked: true, beginAtZero: true, ticks: { color: navy } },
+            y: { stacked: true, display: false }
+          }
+        }
+      });
+    }
+    const chartRows = full
+      ? rows.slice(0, 10)
+      : rows.slice().sort((a, b) => Number(b.anomaly_score) - Number(a.anomaly_score)).slice(0, 10);
+    const scoreVals = chartRows.map((row) => full ? (row.Label === "Anomaly" ? 1 : 0) : Number(row.anomaly_score));
     const scoreMin = scoreVals.length ? Math.min.apply(null, scoreVals) : 0;
     if (scoreChart) scoreChart.destroy();
     scoreChart = new Chart($("scoreChart"), {
       type: "bar",
       data: {
-        labels: topScores.map((row) => "Line " + row.LineId),
+        labels: chartRows.map((row) => "Line " + row.LineId),
         datasets: [{
-          label: "Anomaly score",
+          label: full ? "Ground-truth anomaly (0/1)" : "Anomaly score",
           data: scoreVals,
-          backgroundColor: topScores.map((row) => row.Label === "Anomaly" ? danger : accent),
+          backgroundColor: chartRows.map((row) => row.Label === "Anomaly" ? danger : accent),
           borderRadius: 4,
           barThickness: 16
         }]
@@ -539,12 +682,12 @@
         indexAxis: "y", responsive: true, maintainAspectRatio: false,
         plugins: {
           legend: { display: false },
-          tooltip: { callbacks: { afterLabel: (ctx) => "Ground-truth: " + (topScores[ctx.dataIndex] || {}).Label } }
+          tooltip: { callbacks: { afterLabel: (ctx) => "Ground-truth: " + (chartRows[ctx.dataIndex] || {}).Label } }
         },
         scales: {
           x: {
-            beginAtZero: false,
-            suggestedMin: Math.max(0, scoreMin - 0.01),
+            beginAtZero: full,
+            suggestedMin: full ? 0 : Math.max(0, scoreMin - 0.01),
             ticks: { color: navy },
             grid: { color: "#1e2a3c" }
           },
@@ -565,7 +708,9 @@
         responsive: true, maintainAspectRatio: false, cutout: "62%",
         plugins: {
           legend: { position: "bottom", labels: { color: navy, boxWidth: 10, padding: 16 } },
-          tooltip: { callbacks: { afterBody: () => "Among the 20 highest-scoring API rows, not the full corpus." } }
+          tooltip: { callbacks: { afterBody: () => full
+            ? "Among this parquet sample, not Isolation Forest detections and not the full corpus."
+            : "Among the 20 highest-scoring API rows, not the full corpus." } }
         }
       }
     });
@@ -605,20 +750,23 @@
     if (!row) return;
     const isNew = String(selectedLineId) !== String(row.LineId);
     selectedLineId = row.LineId;
-    if (isNew) addActivity("investigate", "Opened log detail", "LineId " + row.LineId + " · score " + row.anomaly_score + " · Label " + row.Label);
+    if (isNew) addActivity("investigate", "Opened log detail", "LineId " + row.LineId + " · score " + scoreText(row) + " · Label " + row.Label);
     $("drawerBody").innerHTML = `
-      <p class="pill demo spaced">API fields only · no inferred root cause</p>
+      <p class="pill ${isFullMode() ? "research" : "demo"} spaced">${isFullMode() ? "Parquet fields only · ground-truth label · no inferred root cause" : "API fields only · no inferred root cause"}</p>
       <dl class="kv">
         <dt>LineId</dt><dd>${esc(row.LineId)}</dd>
         <dt>BlockId</dt><dd>${esc(row.BlockId)}</dd>
         <dt>EventId</dt><dd>${esc(row.EventId)}</dd>
         <dt>Level</dt><dd>${esc(row.Level)}</dd>
         <dt>Component</dt><dd>${esc(row.Component)}</dd>
-        <dt>Anomaly score</dt><dd>${esc(row.anomaly_score)}</dd>
+        <dt>Anomaly score</dt><dd>${esc(scoreText(row))}</dd>
+        <dt>Model prediction</dt><dd>${esc(row.model_prediction == null || row.model_prediction === "" ? "—" : row.model_prediction)}</dd>
         <dt>Ground-truth label</dt><dd><span class="pill ${row.Label === "Anomaly" ? "anom" : "ok"}">${esc(row.Label)}</span></dd>
       </dl>
       <div class="tech-card note-card spaced">
-        A high anomaly score ranks isolation difficulty. It is not automatically a confirmed incident.
+        ${isFullMode()
+          ? "This label is parquet ground truth for the block, copied onto the line. Isolation Forest scores were not saved per HDFS_v1 line."
+          : "A high anomaly score ranks isolation difficulty. It is not automatically a confirmed incident."}
       </div>
       <div class="kpi-label eval-follow">Raw Content</div>
       <div class="raw-log">${esc(row.Content)}</div>
@@ -637,44 +785,96 @@
 
   async function fetchJson(url, options) {
     const response = await fetch(url, options);
-    if (!response.ok) throw new Error(url + " returned HTTP " + response.status);
+    if (!response.ok) {
+      let extra = "";
+      try {
+        const body = await response.json();
+        if (body && body.detail) extra = ": " + (typeof body.detail === "string" ? body.detail : JSON.stringify(body.detail));
+      } catch (err) { /* ignore parse errors */ }
+      throw new Error(url + " returned HTTP " + response.status + extra);
+    }
     return response.json();
   }
 
   async function refreshData(successMessage, recordActivity) {
     setBusy(true);
-    showBanner("info", "Loading live API data…");
+    showBanner("info", isFullMode() ? "Loading Full HDFS_v1 parquet stats…" : "Loading live API data…");
     try {
-      const [health, stats, anomalies] = await Promise.all([
-        fetchJson("/api/health"),
-        fetchJson("/api/stats"),
-        fetchJson("/api/anomalies?limit=20"),
-        loadFullMetrics()
-      ]);
-      const healthy = health && health.status === "ok";
-      setHealth(healthy, healthy ? "LIVE" : "Offline");
-      $("total").textContent = Number(stats.total_logs).toLocaleString();
-      $("detected").textContent = stats.detected_anomalies;
-      $("rate").textContent = stats.anomaly_rate + "%";
-      $("events").textContent = stats.event_types;
-      $("actualHint").textContent = stats.actual_anomalies != null
-        ? stats.detected_anomalies + " model flags · " + stats.actual_anomalies + " labelled anomalies in the corpus"
-        : "Model flags on the full corpus";
-      $("compHint").textContent = stats.components != null
-        ? stats.event_types + " event types · " + stats.components + " components"
-        : "Unique EventId values in the corpus";
-      $("rateHint").textContent = stats.detected_anomalies + " of " + Number(stats.total_logs).toLocaleString() + " lines · not F1";
-      overviewRows = Array.isArray(anomalies) ? anomalies : [];
-      lastStats = stats;
-      renderCharts(stats, overviewRows);
-      renderOverviewTable();
-      renderAlerts();
-      $("refreshed").textContent = nowStamp();
-      if (successMessage) showBanner("ok", successMessage);
-      else $("banner").classList.remove("show");
-      if (recordActivity !== false) {
-        addActivity("refresh", "Dashboard refresh", "GET /api/health, /api/stats, /api/anomalies?limit=20");
-        addNotice("Corpus view refreshed from live APIs");
+      if (isFullMode()) {
+        const [health, stats, logs] = await Promise.all([
+          fetchJson("/api/health"),
+          fetchJson("/api/hdfs-full/stats"),
+          fetchJson("/api/hdfs-full/logs?after_line=0&limit=20"),
+          loadFullMetrics()
+        ]);
+        const healthy = health && health.status === "ok";
+        setHealth(healthy, healthy ? "LIVE" : "Offline");
+        $("total").textContent = Number(stats.total_logs).toLocaleString();
+        $("detected").textContent = stats.actual_anomalous_blocks != null
+          ? Number(stats.actual_anomalous_blocks).toLocaleString()
+          : "n/a";
+        $("rate").textContent = stats.block_anomaly_rate != null ? stats.block_anomaly_rate + "%" : "n/a";
+        $("events").textContent = stats.unique_blocks != null
+          ? Number(stats.unique_blocks).toLocaleString()
+          : "n/a";
+        $("actualHint").textContent = "Ground-truth anomalous blocks · Isolation Forest line detections are not stored";
+        $("compHint").textContent = stats.event_types != null
+          ? Number(stats.unique_blocks).toLocaleString() + " unique blocks · " + Number(stats.event_types).toLocaleString() + " derived event ids"
+          : "Unique BlockIds from saved ingest metadata";
+        $("rateHint").textContent = "Ground-truth anomalous blocks ÷ unique blocks · not F1";
+        overviewRows = logs && Array.isArray(logs.records) ? logs.records : [];
+        lastStats = {
+          dataset: "HDFS_v1",
+          total_logs: stats.total_logs,
+          detected_anomalies: null,
+          actual_anomalies: stats.actual_anomalous_blocks,
+          unique_blocks: stats.unique_blocks,
+          block_anomaly_rate: stats.block_anomaly_rate,
+          event_types: stats.event_types,
+          model_predictions_available: false
+        };
+        renderCharts(lastStats, overviewRows);
+        renderOverviewTable();
+        renderAlerts();
+        $("refreshed").textContent = nowStamp();
+        if (successMessage) showBanner("ok", successMessage);
+        else $("banner").classList.remove("show");
+        if (recordActivity !== false) {
+          addActivity("refresh", "HDFS_v1 refresh", "GET /api/hdfs-full/stats and /api/hdfs-full/logs");
+          addNotice("Full HDFS_v1 parquet view refreshed");
+        }
+      } else {
+        const [health, stats, anomalies] = await Promise.all([
+          fetchJson("/api/health"),
+          fetchJson("/api/stats"),
+          fetchJson("/api/anomalies?limit=20"),
+          loadFullMetrics()
+        ]);
+        const healthy = health && health.status === "ok";
+        setHealth(healthy, healthy ? "LIVE" : "Offline");
+        $("total").textContent = Number(stats.total_logs).toLocaleString();
+        $("detected").textContent = stats.detected_anomalies;
+        $("rate").textContent = stats.anomaly_rate + "%";
+        $("events").textContent = stats.event_types;
+        $("actualHint").textContent = stats.actual_anomalies != null
+          ? stats.detected_anomalies + " model flags · " + stats.actual_anomalies + " labelled anomalies in the corpus"
+          : "Model flags on the full corpus";
+        $("compHint").textContent = stats.components != null
+          ? stats.event_types + " event types · " + stats.components + " components"
+          : "Unique EventId values in the corpus";
+        $("rateHint").textContent = stats.detected_anomalies + " of " + Number(stats.total_logs).toLocaleString() + " lines · not F1";
+        overviewRows = Array.isArray(anomalies) ? anomalies : [];
+        lastStats = stats;
+        renderCharts(stats, overviewRows);
+        renderOverviewTable();
+        renderAlerts();
+        $("refreshed").textContent = nowStamp();
+        if (successMessage) showBanner("ok", successMessage);
+        else $("banner").classList.remove("show");
+        if (recordActivity !== false) {
+          addActivity("refresh", "Dashboard refresh", "GET /api/health, /api/stats, /api/anomalies?limit=20");
+          addNotice("Corpus view refreshed from live APIs");
+        }
       }
     } catch (err) {
       setHealth(false, "Offline");
@@ -688,11 +888,36 @@
     if (explorerLoading) return;
     explorerLoading = true;
     try {
-      const rows = await fetchJson("/api/anomalies?limit=200");
-      explorerRows = Array.isArray(rows) ? rows : [];
-      renderLogs();
-      renderInvestigation();
-      if (recordActivity) addActivity("logs", "Opened log explorer", explorerRows.length + " rows from GET /api/anomalies?limit=200");
+      if (isFullMode()) {
+        const params = new URLSearchParams({
+          after_line: String(fullAfterLine),
+          limit: "50"
+        });
+        const q = ($("logSearch").value || "").trim();
+        const level = $("levelFilter").value;
+        const label = $("labelFilterLogs").value;
+        if (q) params.set("q", q);
+        if (level) params.set("level", level);
+        if (label) params.set("label", label);
+        const payload = await fetchJson("/api/hdfs-full/logs?" + params.toString());
+        explorerRows = payload && Array.isArray(payload.records) ? payload.records : [];
+        fullHasMore = !!(payload.paging && payload.paging.has_more);
+        if ($("logsPageHint")) {
+          $("logsPageHint").textContent = explorerRows.length
+            ? ("Lines " + explorerRows[0].LineId + "–" + explorerRows[explorerRows.length - 1].LineId +
+              (fullHasMore ? " · more available" : " · last page of this filter"))
+            : "No parquet rows for this filter";
+        }
+        renderLogs();
+        renderInvestigation();
+        if (recordActivity) addActivity("logs", "Opened HDFS_v1 explorer", explorerRows.length + " parquet rows from /api/hdfs-full/logs");
+      } else {
+        const rows = await fetchJson("/api/anomalies?limit=200");
+        explorerRows = Array.isArray(rows) ? rows : [];
+        renderLogs();
+        renderInvestigation();
+        if (recordActivity) addActivity("logs", "Opened log explorer", explorerRows.length + " rows from GET /api/anomalies?limit=200");
+      }
     } catch (err) {
       $("logRows").innerHTML = `<tr><td colspan="8" class="msg">Explorer unavailable: ${esc(err.message)}</td></tr>`;
       $("invRows").innerHTML = `<tr><td colspan="7" class="msg">Investigation unavailable: ${esc(err.message)}</td></tr>`;
@@ -754,23 +979,29 @@
   function renderAlerts() {
     if (!$("alertStatusCard")) return;
     const stats = lastStats;
-    const flagged = stats ? Number(stats.detected_anomalies) : null;
+    const full = isFullMode() || (stats && stats.dataset === "HDFS_v1");
+    const flagged = stats && stats.detected_anomalies != null ? Number(stats.detected_anomalies) : null;
     const actual = stats ? stats.actual_anomalies : null;
     const total = stats ? stats.total_logs : null;
     const run = latestRun();
     $("alertFlagged").textContent = flagged == null ? "—" : flagged;
-    $("alertActual").textContent = actual == null ? "—" : actual;
+    $("alertActual").textContent = actual == null ? "—" : Number(actual).toLocaleString();
     $("alertTotal").textContent = total == null ? "—" : Number(total).toLocaleString();
     $("alertLastRun").textContent = run ? new Date(run.at).toLocaleString() : "No session run";
-    $("alertLastRunHint").textContent = run
-      ? "Demo / session history · not a server-side audit trail"
-      : "Retrain to record a demo run. Corpus flags below are from /api/stats.";
+    $("alertLastRunHint").textContent = full
+      ? "Retrain remains HDFS-2k only. This page is parquet ground truth, not a detection run."
+      : (run
+        ? "Demo / session history · not a server-side audit trail"
+        : "Retrain to record a demo run. Corpus flags below are from /api/stats.");
 
     const card = $("alertStatusCard");
     const runWhen = run ? new Date(run.at).toLocaleString() : "";
     if (!stats) {
       card.className = "tech-card alert-status empty";
-      card.innerHTML = `<div><span class="pill">Empty</span><h2 class="section-title" style="margin-top:8px">Waiting for corpus stats</h2><p>Load /api/stats to show model-flagged counts. This is not a live security feed.</p></div>`;
+      card.innerHTML = `<div><span class="pill">Empty</span><h2 class="section-title" style="margin-top:8px">Waiting for corpus stats</h2><p>${full ? "Load /api/hdfs-full/stats to show ground-truth block counts." : "Load /api/stats to show model-flagged counts. This is not a live security feed."}</p></div>`;
+    } else if (full) {
+      card.className = "tech-card alert-status warn";
+      card.innerHTML = `<div><span class="pill research">Ground truth</span><h2 class="section-title" style="margin-top:8px">${actual != null ? Number(actual).toLocaleString() + " labelled anomalous blocks" : "HDFS_v1 parquet"}</h2><p>These counts are parquet ground truth, not Isolation Forest detections. Per-line model scores were not saved for HDFS_v1. Retrain still trains HDFS-2k only.</p></div><div class="alert-actions"><button class="btn primary" type="button" data-review-flagged>Review labelled logs</button></div>`;
     } else if (run && run.status === "failed") {
       card.className = "tech-card alert-status fail";
       card.innerHTML = `<div><span class="pill anom">Failed</span><h2 class="section-title" style="margin-top:8px">Last detection run failed</h2><p>${esc(asSentence(run.detail || "POST /api/retrain did not complete"))} Completed at ${esc(runWhen)}. Corpus counts below still reflect the last successful /api/stats response.</p></div><div class="alert-actions"><button class="btn primary" type="button" data-retry-retrain>Retry retrain</button></div>`;
@@ -785,9 +1016,11 @@
     const sample = overviewRows.slice(0, 10);
     $("alertRows").innerHTML = sample.length
       ? sample.map((row) => rowHtml(row, true)).join("")
-      : `<tr><td colspan="7" class="msg">No /api/anomalies rows yet. Refresh or wait for corpus load.</td></tr>`;
+      : `<tr><td colspan="7" class="msg">${full ? "No parquet sample rows yet. Refresh the Full HDFS_v1 view." : "No /api/anomalies rows yet. Refresh or wait for corpus load."}</td></tr>`;
     $("alertRowNote").textContent = sample.length
-      ? "Showing " + sample.length + " highest-scoring API rows · not the complete flagged set"
+      ? (full
+        ? "Showing " + sample.length + " parquet rows · ground-truth labels · scores not stored"
+        : "Showing " + sample.length + " highest-scoring API rows · not the complete flagged set")
       : "No sample rows";
 
     const runs = readJson(RUNS_KEY, []);
@@ -809,14 +1042,25 @@
   }
 
   function openFlaggedInvestigation() {
-    $("invFocus").value = "priority";
+    $("invFocus").value = isFullMode() ? "anomaly" : "priority";
     showView("investigate");
+    if (isFullMode()) {
+      $("labelFilterLogs").value = "Anomaly";
+      resetFullCursor();
+      loadExplorer(true);
+      showBanner("info", "Investigation is filtering parquet rows with ground-truth Label = Anomaly. These are not Isolation Forest detections.");
+      return;
+    }
     if (!explorerRows.length) loadExplorer(true);
     else renderInvestigation();
     showBanner("info", "Investigation shows the anomalies API sample. It is not the complete corpus flagged set.");
   }
 
   async function retrainModel() {
+    if (isFullMode()) {
+      showBanner("info", "Retrain still trains Isolation Forest on HDFS-2k only. Switch to Demo Dataset — HDFS-2k to retrain.");
+      return;
+    }
     if (retrainInFlight) return;
     retrainInFlight = true;
     setBusy(true);
@@ -945,10 +1189,80 @@
     document.body.style.overflow = "auto";
   }
 
+  let datasetSwitching = false;
+  async function switchDataset(mode) {
+    const next = mode === "full" ? "full" : "demo";
+    if (datasetSwitching) return;
+    if (sessionStorage.getItem(DATASET_KEY) === next && lastStats) {
+      const alreadyFull = lastStats.dataset === "HDFS_v1";
+      if ((next === "full") === alreadyFull) {
+        applyDatasetChrome();
+        return;
+      }
+    }
+    datasetSwitching = true;
+    sessionStorage.setItem(DATASET_KEY, next);
+    resetFullCursor();
+    overviewRows = [];
+    explorerRows = [];
+    lastStats = null;
+    applyDatasetChrome();
+    addActivity("dataset", "Switched dataset", next === "full" ? "Research Dataset — Full HDFS_v1" : "Demo Dataset — HDFS-2k");
+    try {
+      await refreshData(
+        next === "full"
+          ? "Now viewing Full HDFS_v1 parquet. Labels are ground truth; per-line model scores are not stored."
+          : "Now viewing Demo Dataset — HDFS-2k.",
+        true
+      );
+      const view = currentView();
+      if (view === "logs" || view === "investigate" || view === "alerts") loadExplorer(false);
+    } finally {
+      datasetSwitching = false;
+    }
+  }
+
+  function onExplorerFilterChange() {
+    if (!isFullMode()) {
+      renderLogs();
+      return;
+    }
+    clearTimeout(fullSearchTimer);
+    fullSearchTimer = setTimeout(() => {
+      resetFullCursor();
+      loadExplorer(false);
+    }, 400);
+  }
+
+  async function loadFullBlock() {
+    const blockId = ($("invBlockId").value || "").trim();
+    if (!blockId) {
+      showBanner("err", "Enter a BlockId to load from parquet.");
+      return;
+    }
+    try {
+      const payload = await fetchJson("/api/hdfs-full/blocks?block_id=" + encodeURIComponent(blockId));
+      explorerRows = payload && Array.isArray(payload.records) ? payload.records : [];
+      fullHasMore = !!payload.has_more;
+      renderLogs();
+      renderInvestigation();
+      showBanner(
+        "ok",
+        "Loaded " + explorerRows.length + " parquet lines for " + blockId +
+          " · ground-truth " + (payload.ground_truth_label || "n/a") +
+          " · model scores not stored"
+      );
+      addActivity("investigate", "Loaded HDFS_v1 block", blockId + " · " + explorerRows.length + " lines");
+    } catch (err) {
+      showBanner("err", "Block lookup failed: " + err.message);
+    }
+  }
+
   function showApp() {
     $("loginScreen").hidden = true;
     $("appShell").hidden = false;
     document.body.style.overflow = "hidden";
+    applyDatasetChrome();
     renderEval(readJson(EVAL_KEY, null));
     renderNotices();
     renderActivity();
@@ -1004,7 +1318,14 @@
     $("togglePassword").textContent = hidden ? "Hide" : "Show";
   });
   $("signOutBtn").addEventListener("click", signOut);
-  $("refreshBtn").addEventListener("click", () => refreshData("Corpus view updated from /api/stats and /api/anomalies."));
+  const onDatasetSelect = (event) => switchDataset(event.target.value);
+  $("datasetSelect").addEventListener("change", onDatasetSelect);
+  $("datasetSelect").addEventListener("input", onDatasetSelect);
+  $("refreshBtn").addEventListener("click", () => refreshData(
+    isFullMode()
+      ? "Full HDFS_v1 view updated from /api/hdfs-full/stats and /api/hdfs-full/logs."
+      : "Corpus view updated from /api/stats and /api/anomalies."
+  ));
   $("retrainBtn").addEventListener("click", retrainModel);
   $("evalRetrainBtn").addEventListener("click", retrainModel);
   $("alertRetrainBtn").addEventListener("click", retrainModel);
@@ -1024,11 +1345,41 @@
     if (event.target.closest("[data-review-flagged]")) openFlaggedInvestigation();
     if (event.target.closest("[data-retry-retrain]")) retrainModel();
   });
-  $("logsRefreshBtn").addEventListener("click", () => loadExplorer(true));
+  $("logsRefreshBtn").addEventListener("click", () => {
+    if (isFullMode()) resetFullCursor();
+    loadExplorer(true);
+  });
+  if ($("logsNextBtn")) {
+    $("logsNextBtn").addEventListener("click", () => {
+      if (!isFullMode() || !fullHasMore || !explorerRows.length) return;
+      const next = explorerRows[explorerRows.length - 1].LineId;
+      fullCursorStack.push(next);
+      fullAfterLine = next;
+      loadExplorer(false);
+    });
+  }
+  if ($("logsPrevBtn")) {
+    $("logsPrevBtn").addEventListener("click", () => {
+      if (!isFullMode() || fullCursorStack.length <= 1) return;
+      fullCursorStack.pop();
+      fullAfterLine = fullCursorStack[fullCursorStack.length - 1];
+      loadExplorer(false);
+    });
+  }
+  if ($("invBlockBtn")) $("invBlockBtn").addEventListener("click", loadFullBlock);
+  if ($("invBlockId")) {
+    $("invBlockId").addEventListener("keydown", (event) => {
+      if (event.key === "Enter") {
+        event.preventDefault();
+        loadFullBlock();
+      }
+    });
+  }
   $("filterAll").addEventListener("click", () => { labelFilter = "ALL"; document.querySelectorAll("#view-overview .filters button").forEach((b) => b.classList.remove("active")); $("filterAll").classList.add("active"); renderOverviewTable(); });
   $("filterNormal").addEventListener("click", () => { labelFilter = "Normal"; document.querySelectorAll("#view-overview .filters button").forEach((b) => b.classList.remove("active")); $("filterNormal").classList.add("active"); renderOverviewTable(); });
   $("filterAnomaly").addEventListener("click", () => { labelFilter = "Anomaly"; document.querySelectorAll("#view-overview .filters button").forEach((b) => b.classList.remove("active")); $("filterAnomaly").classList.add("active"); renderOverviewTable(); });
-  ["logSearch", "levelFilter", "labelFilterLogs", "sortLogs"].forEach((id) => $(id).addEventListener("input", renderLogs));
+  ["logSearch", "levelFilter", "labelFilterLogs"].forEach((id) => $(id).addEventListener("input", onExplorerFilterChange));
+  $("sortLogs").addEventListener("input", renderLogs);
   ["invSearch", "invFocus"].forEach((id) => $(id).addEventListener("input", renderInvestigation));
   $("clearActivityBtn").addEventListener("click", () => {
     localStorage.removeItem(ACTIVITY_KEY);
