@@ -1,7 +1,7 @@
 (function () {
   const DEMO = {
-    org: "Nexora Technologies",
-    product: "Nexora Observability",
+    org: "Presidency University · CAI_37",
+    product: "OMEN X",
     name: "Aarav Mehta",
     role: "Software Developer — Platform Engineering",
     email: "aarav.mehta@nexora.example",
@@ -16,7 +16,7 @@
   const NOTIFY_KEY = "nexoraDemoNotices";
   const RUNS_KEY = "nexoraDemoDetectionRuns";
   const DATASET_KEY = "nexoraDatasetMode";
-  const VIEWS = ["overview", "logs", "alerts", "investigate", "evaluation", "activity"];
+  const VIEWS = ["home", "overview", "logs", "alerts", "investigate", "evaluation", "activity"];
 
   let distChart, scoreChart, labelChart;
   let overviewRows = [];
@@ -607,9 +607,9 @@
 
   function renderCharts(stats, rows) {
     Chart.defaults.color = "#9fb0c3";
-    Chart.defaults.borderColor = "#1e2a3c";
-    Chart.defaults.font.family = "Inter, Segoe UI, sans-serif";
-    const navy = "#e8eef6", accent = "#3b82f6", muted = "#334155", danger = "#ef4444", ok = "#22c55e";
+    Chart.defaults.borderColor = "rgba(255,255,255,0.08)";
+    Chart.defaults.font.family = "DM Sans, Segoe UI, sans-serif";
+    const navy = "#d5dee8", accent = "#3ee0ff", muted = "#243140", danger = "#f5b942", ok = "#2dd4bf";
     const full = isFullMode() || stats.dataset === "HDFS_v1";
     if (distChart) distChart.destroy();
     if (full) {
@@ -745,6 +745,23 @@
       : `<div class="menu-item">No demo notices yet.</div>`;
   }
 
+  function featureTags(row) {
+    const content = String(row.Content || "");
+    const low = content.toLowerCase();
+    const tokens = content.trim() ? content.trim().split(/\s+/) : [];
+    const digits = content.match(/\d/g);
+    const ips = content.match(/\b(?:\d{1,3}\.){3}\d{1,3}(?::\d+)?\b/g);
+    return [
+      { name: "message_length", value: content.length, on: content.length > 80 },
+      { name: "token_count", value: tokens.length, on: tokens.length > 8 },
+      { name: "digit_count", value: digits ? digits.length : 0, on: !!(digits && digits.length) },
+      { name: "ip_count", value: ips ? ips.length : 0, on: !!(ips && ips.length) },
+      { name: "is_verify", value: /verification/.test(low) ? 1 : 0, on: /verification/.test(low) },
+      { name: "is_delete", value: /delete|invalidset/.test(low) ? 1 : 0, on: /delete|invalidset/.test(low) },
+      { name: "has_exception", value: /exception|error|failed|interrupted/.test(low) ? 1 : 0, on: /exception|error|failed|interrupted/.test(low) }
+    ];
+  }
+
   function openDrawer(lineId) {
     const row = explorerRows.concat(overviewRows).find((r) => String(r.LineId) === String(lineId));
     if (!row) return;
@@ -768,6 +785,8 @@
           ? "This label is parquet ground truth for the block, copied onto the line. Isolation Forest scores were not saved per HDFS_v1 line."
           : "A high anomaly score ranks isolation difficulty. It is not automatically a confirmed incident."}
       </div>
+      <div class="kpi-label eval-follow">Line features</div>
+      <div class="feature-tags">${featureTags(row).map((tag) => `<span class="feat-tag${tag.on ? " on" : ""}">${esc(tag.name)} ${esc(String(tag.value))}</span>`).join("")}</div>
       <div class="kpi-label eval-follow">Raw Content</div>
       <div class="raw-log">${esc(row.Content)}</div>
     `;
@@ -836,6 +855,8 @@
         renderCharts(lastStats, overviewRows);
         renderOverviewTable();
         renderAlerts();
+        renderHome();
+        updateThresholdSimulator();
         $("refreshed").textContent = nowStamp();
         if (successMessage) showBanner("ok", successMessage);
         else $("banner").classList.remove("show");
@@ -868,6 +889,8 @@
         renderCharts(stats, overviewRows);
         renderOverviewTable();
         renderAlerts();
+        renderHome();
+        updateThresholdSimulator();
         $("refreshed").textContent = nowStamp();
         if (successMessage) showBanner("ok", successMessage);
         else $("banner").classList.remove("show");
@@ -878,6 +901,8 @@
       }
     } catch (err) {
       setHealth(false, "Offline");
+      renderHome();
+      updateThresholdSimulator();
       showBanner("err", "Refresh failed: " + err.message);
     } finally {
       setBusy(false);
@@ -1062,6 +1087,8 @@
       return;
     }
     if (retrainInFlight) return;
+    const confirmed = window.confirm("Retrain Isolation Forest on HDFS-2k? This rewrites the saved 2k model, results CSV, and metrics.json. It does not train Full HDFS_v1.");
+    if (!confirmed) return;
     retrainInFlight = true;
     setBusy(true);
     hideToast();
@@ -1128,11 +1155,119 @@
   }
 
   function currentView() {
-    const hash = (location.hash || "#/overview").replace("#/", "");
-    return VIEWS.includes(hash) ? hash : "overview";
+    const hash = (location.hash || "#/home").replace("#/", "");
+    return VIEWS.includes(hash) ? hash : "home";
+  }
+
+  function paintHomeBar(id, value, max) {
+    const width = max > 0 && value > 0 ? Math.max(1.2, (value / max) * 100) : 0;
+    $(id).style.width = width + "%";
+  }
+
+  function renderHomeLines() {
+    const box = $("homeLines");
+    if (!box) return;
+    if (isFullMode()) {
+      $("homeLinesTitle").textContent = "Parquet sample";
+      const rows = overviewRows.slice(0, 4);
+      box.innerHTML = rows.length
+        ? rows.map((row) => `<button type="button" class="home-line" data-line="${esc(row.LineId)}"><span class="mono">${esc(row.LineId)}</span><span>${esc(row.Label || "—")}</span><span class="mono">—</span><span class="msg">${esc(row.Content || "")}</span></button>`).join("")
+        : `<p class="home-panel-note">No parquet rows on this page yet.</p>`;
+      return;
+    }
+    $("homeLinesTitle").textContent = "Highest scores in this sample";
+    const rows = overviewRows.slice().sort((a, b) => Number(b.anomaly_score) - Number(a.anomaly_score)).slice(0, 4);
+    box.innerHTML = rows.length
+      ? rows.map((row) => `<button type="button" class="home-line" data-line="${esc(row.LineId)}"><span class="mono">${esc(row.LineId)}</span><span>${esc(row.Label || "—")}</span><span class="mono">${esc(scoreText(row))}</span><span class="msg">${esc(row.Content || "")}</span></button>`).join("")
+      : `<p class="home-panel-note">No scored lines loaded yet.</p>`;
+  }
+
+  function renderHome() {
+    const hour = new Date().getHours();
+    const part = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+    const who = String(DEMO.name || "Aarav").split(" ")[0];
+    $("homeHello").textContent = "Hello";
+    $("homeGreet").textContent = part + ", " + who;
+    if (!lastStats) {
+      $("homeStatus").textContent = "Checking the live corpus…";
+      $("homeFine") && ($("homeFine").textContent = "A quiet count is not a safety clearance.");
+      return;
+    }
+    if (isFullMode()) {
+      const labelled = Number(lastStats.actual_anomalies);
+      const blocks = Number(lastStats.unique_blocks);
+      const total = Number(lastStats.total_logs);
+      $("homeStatus").textContent = "Research view. Line scores are not stored, so this screen cannot call the system safe.";
+      $("homeFact1Label").textContent = "Labelled anomalous blocks";
+      $("homeFact1").textContent = Number.isFinite(labelled) ? labelled.toLocaleString() : "—";
+      $("homeFact1Note").textContent = "Ground truth in the parquet. Not a model detection.";
+      $("homeFact2Label").textContent = "Unique blocks";
+      $("homeFact2").textContent = Number.isFinite(blocks) ? blocks.toLocaleString() : "—";
+      $("homeFact2Note").textContent = "Full HDFS_v1. Retrain does not train this corpus.";
+      $("homeFact3Label").textContent = "Log lines";
+      $("homeFact3").textContent = Number.isFinite(total) ? total.toLocaleString() : "—";
+      $("homeFact3Note").textContent = "Parquet rows. Scores are not stored on these lines.";
+      $("homePictureTitle").textContent = "Block labels";
+      $("homePictureNote").textContent = "Ground truth only. These bars are not Isolation Forest detections.";
+      $("homeBar1Label").textContent = "Anomalous blocks";
+      $("homeBar2Label").textContent = "Other blocks";
+      $("homeBar3Label").textContent = "Log lines";
+      $("homeBar1Text").textContent = Number.isFinite(labelled) ? labelled.toLocaleString() : "—";
+      $("homeBar2Text").textContent = Number.isFinite(blocks) && Number.isFinite(labelled) ? Math.max(blocks - labelled, 0).toLocaleString() : "—";
+      $("homeBar3Text").textContent = Number.isFinite(total) ? total.toLocaleString() : "—";
+      paintHomeBar("homeBar1", labelled, blocks);
+      paintHomeBar("homeBar2", Math.max(blocks - labelled, 0), blocks);
+      paintHomeBar("homeBar3", total, total);
+      $("homeGoAlerts").textContent = "Ground-truth blocks only. Line scores are not stored.";
+      $("homeGoOverview").textContent = "Charts and the held-out research cards.";
+      $("homeGoEval").textContent = "Full-corpus F1 is effectively tied. Baseline PR-AUC is higher.";
+      renderHomeLines();
+      return;
+    }
+    const flags = Number(lastStats.detected_anomalies);
+    const labelled = lastStats.actual_anomalies;
+    const total = Number(lastStats.total_logs);
+    $("homeFact1Label").textContent = "Model flags";
+    $("homeFact1").textContent = Number.isFinite(flags) ? String(flags) : "—";
+    $("homeFact1Note").textContent = "Of " + (Number.isFinite(total) ? total.toLocaleString() : "—") + " HDFS-2k lines. Not confirmed incidents.";
+    $("homeFact2Label").textContent = "Ground-truth anomalies";
+    $("homeFact2").textContent = labelled != null ? String(labelled) : "—";
+    $("homeFact2Note").textContent = "Labelled in the corpus. Separate from the model flags.";
+    $("homeFact3Label").textContent = "Corpus rate";
+    $("homeFact3").textContent = lastStats.anomaly_rate != null ? lastStats.anomaly_rate + "%" : "—";
+    $("homeFact3Note").textContent = "Flags ÷ lines. This is not F1 and not a safety score.";
+    $("homeStatus").textContent = flags > 0
+      ? flags + " candidate anomalies need a look. A low rate is not a safety clearance."
+      : "No model flags in this demo corpus. Ground truth can still contain labelled anomalies.";
+    const labelledN = Number(labelled);
+    const rest = Number.isFinite(total) && Number.isFinite(labelledN) ? Math.max(total - labelledN, 0) : 0;
+    $("homePictureTitle").textContent = "Corpus picture";
+    $("homePictureNote").textContent = "Shares of the 2,000-line demo. Bar length is the count, not a safety rating.";
+    $("homeBar1Label").textContent = "Model flags";
+    $("homeBar2Label").textContent = "Ground-truth anomalies";
+    $("homeBar3Label").textContent = "Lines not labelled anomalous";
+    $("homeBar1Text").textContent = Number.isFinite(flags) ? String(flags) : "—";
+    $("homeBar2Text").textContent = labelled != null ? String(labelled) : "—";
+    $("homeBar3Text").textContent = Number.isFinite(rest) ? rest.toLocaleString() : "—";
+    paintHomeBar("homeBar1", flags, total);
+    paintHomeBar("homeBar2", labelledN, total);
+    paintHomeBar("homeBar3", rest, total);
+    $("homeGoAlerts").textContent = flags + " model flags, kept separate from " + (labelled != null ? labelled : "the") + " labels.";
+    $("homeGoOverview").textContent = "Charts, the research benchmark, and the scored table.";
+    $("homeGoEval").textContent = "Precision, recall, and F1. Not the " + (lastStats.anomaly_rate != null ? lastStats.anomaly_rate + "%" : "corpus") + " rate.";
+    renderHomeLines();
   }
 
   function showView(name, push) {
+    const titles = {
+      home: "Home",
+      overview: "Overview",
+      logs: "Live Logs",
+      alerts: "Alerts & Detection",
+      investigate: "Anomaly Investigation",
+      evaluation: "Model Evaluation",
+      activity: "Activity History"
+    };
     if (push !== false) location.hash = "#/" + name;
     VIEWS.forEach((view) => {
       $("view-" + view).hidden = view !== name;
@@ -1143,8 +1278,11 @@
       if (on) btn.setAttribute("aria-current", "page");
       else btn.removeAttribute("aria-current");
     });
+    if ($("viewCrumb")) $("viewCrumb").textContent = titles[name] || "Home";
+    document.title = "OMEN X — " + (titles[name] || "Infrastructure Intelligence");
     $("sidebar").classList.remove("open");
     if ($("navScrim")) $("navScrim").hidden = true;
+    if (name === "home") renderHome();
     if (name === "overview" && distChart) {
       [distChart, scoreChart, labelChart].forEach((chart) => { if (chart) chart.resize(); });
     }
@@ -1173,13 +1311,14 @@
         id: 1,
         type: "system",
         title: "Demo workspace provisioned",
-        detail: "Nexora Observability · fictional organization · HDFS-2k",
+        detail: "OMEN X · Presidency University · CAI_37 · HDFS-2k",
         at: new Date().toISOString(),
         demo: true
       }]);
     }
     addActivity("auth", "Demo sign-in", method + " · " + DEMO.email + " · mock authentication");
-    addNotice("Signed in to the Nexora demo workspace");
+    addNotice("Signed in to the OMEN X demo workspace");
+    location.hash = "#/home";
     showApp();
   }
 
@@ -1385,8 +1524,107 @@
     localStorage.removeItem(ACTIVITY_KEY);
     renderActivity();
   });
-  document.querySelectorAll(".nav-btn").forEach((btn) => {
+  document.querySelectorAll(".nav-btn, .home-jump").forEach((btn) => {
     btn.addEventListener("click", () => showView(btn.dataset.view));
+  });
+
+  const COMMANDS = [
+    { id: "home", label: "Home", run: () => showView("home") },
+    { id: "overview", label: "Overview", run: () => showView("overview") },
+    { id: "logs", label: "Live Logs", run: () => showView("logs") },
+    { id: "alerts", label: "Alerts and detection", run: () => showView("alerts") },
+    { id: "investigate", label: "Anomaly investigation", run: () => showView("investigate") },
+    { id: "evaluation", label: "Model evaluation", run: () => showView("evaluation") },
+    { id: "activity", label: "Activity history", run: () => showView("activity") },
+    { id: "refresh", label: "Refresh live APIs", run: () => refreshData("Corpus view refreshed", true) },
+    { id: "pipeline", label: "Open pipeline blueprint", run: () => { $("archModal").hidden = false; } },
+    { id: "top", label: "Open highest loaded score", run: () => {
+      const row = overviewRows.slice().sort((a, b) => Number(b.anomaly_score) - Number(a.anomaly_score))[0];
+      if (row) openDrawer(row.LineId);
+    } },
+    { id: "retrain", label: "Retrain HDFS-2k", run: () => { if (!isFullMode()) retrainModel(); } }
+  ];
+
+  function renderCommands(query) {
+    const q = (query || "").trim().toLowerCase();
+    const items = COMMANDS.filter((cmd) => !q || cmd.label.toLowerCase().includes(q));
+    $("cmdList").innerHTML = items.map((cmd) => `<button type="button" class="cmd-item" data-cmd="${cmd.id}">${esc(cmd.label)}</button>`).join("")
+      || `<p class="eval-note">No matching command.</p>`;
+  }
+
+  function openPalette() {
+    $("cmdPalette").hidden = false;
+    renderCommands("");
+    $("cmdInput").value = "";
+    $("cmdInput").focus();
+  }
+
+  function closePalette() { $("cmdPalette").hidden = true; }
+
+  $("cmdOpen").addEventListener("click", openPalette);
+  $("archOpen").addEventListener("click", () => { $("archModal").hidden = false; });
+  $("archClose").addEventListener("click", () => { $("archModal").hidden = true; });
+  $("archModal").addEventListener("click", (event) => { if (event.target === $("archModal")) $("archModal").hidden = true; });
+  $("cmdPalette").addEventListener("click", (event) => { if (event.target === $("cmdPalette")) closePalette(); });
+  $("cmdInput").addEventListener("input", () => renderCommands($("cmdInput").value));
+  $("cmdList").addEventListener("click", (event) => {
+    const btn = event.target.closest("[data-cmd]");
+    if (!btn) return;
+    const cmd = COMMANDS.find((item) => item.id === btn.dataset.cmd);
+    closePalette();
+    if (cmd) cmd.run();
+  });
+  document.addEventListener("keydown", (event) => {
+    if ((event.ctrlKey || event.metaKey) && event.key.toLowerCase() === "k") {
+      event.preventDefault();
+      if ($("cmdPalette").hidden) openPalette();
+      else closePalette();
+    } else if (event.key === "Escape") {
+      closePalette();
+      $("archModal").hidden = true;
+    }
+  });
+
+  function updateThresholdSimulator() {
+    const slider = $("simSlider");
+    const cutoff = Number(slider.value);
+    $("simValue").textContent = cutoff.toFixed(6);
+    if (isFullMode()) {
+      $("simFlags").textContent = "—";
+      $("simPrec").textContent = "—";
+      $("simRec").textContent = "—";
+      $("simF1").textContent = "—";
+      $("simNote").textContent = "Full HDFS_v1 lines have no stored scores. The slider does not invent them.";
+      return;
+    }
+    const rows = overviewRows.filter((row) => row.anomaly_score != null && row.anomaly_score !== "" && !Number.isNaN(Number(row.anomaly_score)));
+    let tp = 0, fp = 0, fn = 0;
+    rows.forEach((row) => {
+      const flagged = Number(row.anomaly_score) >= cutoff;
+      const anomaly = row.Label === "Anomaly";
+      if (flagged && anomaly) tp += 1;
+      else if (flagged) fp += 1;
+      else if (anomaly) fn += 1;
+    });
+    const prec = tp + fp ? tp / (tp + fp) : 0;
+    const rec = tp + fn ? tp / (tp + fn) : 0;
+    const f1 = prec + rec ? (2 * prec * rec) / (prec + rec) : 0;
+    $("simFlags").textContent = String(tp + fp);
+    $("simPrec").textContent = rows.length ? prec.toFixed(4) : "—";
+    $("simRec").textContent = rows.length ? rec.toFixed(4) : "—";
+    $("simF1").textContent = rows.length ? f1.toFixed(4) : "—";
+    $("simNote").textContent = "Counted on " + rows.length + " loaded /api/anomalies rows. Not the 399-block held-out test. Official test metrics stay in the cards above.";
+  }
+
+  $("simSlider").addEventListener("input", updateThresholdSimulator);
+  $("simReset").addEventListener("click", () => {
+    $("simSlider").value = "0.182371";
+    updateThresholdSimulator();
+  });
+  updateThresholdSimulator();
+  $("homeLines").addEventListener("click", (event) => {
+    const line = event.target.closest("[data-line]");
+    if (line) openDrawer(line.dataset.line);
   });
   $("menuToggle").addEventListener("click", () => {
     const open = $("sidebar").classList.toggle("open");

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import logging
 import sys
 from pathlib import Path
 
@@ -15,6 +16,8 @@ sys.path.insert(0, str(SRC))
 
 from anomaly_pipeline import load_and_prepare, train_and_evaluate  # noqa: E402
 from hdfs_full_store import fetch_block, fetch_logs, stats as hdfs_full_stats  # noqa: E402
+
+logger = logging.getLogger("nexora")
 
 app = FastAPI(title="AI Log Anomaly Detection API", version="1.0")
 app.add_middleware(
@@ -39,6 +42,23 @@ def result_df():
         return load_and_prepare()
 
 
+def scored_frame():
+    """HDFS-2k rows that actually carry Isolation Forest scores."""
+    df = result_df()
+    required = ("anomaly_prediction", "anomaly_score", "Label", "LineId")
+    missing = [column for column in required if column not in getattr(df, "columns", [])]
+    if missing:
+        raise HTTPException(
+            status_code=503,
+            detail=(
+                "Scored HDFS-2k results are unavailable (missing "
+                + ", ".join(missing)
+                + "). Keep results/anomaly_results.csv, or run python src/train_model.py."
+            ),
+        )
+    return df
+
+
 @app.get("/", response_class=HTMLResponse)
 def home():
     return (ROOT / "dashboard" / "index.html").read_text(encoding="utf-8")
@@ -51,7 +71,7 @@ def health():
 
 @app.get("/api/stats")
 def stats():
-    df = result_df()
+    df = scored_frame()
     detected = int(df["anomaly_prediction"].sum())
     total = int(len(df))
     actual = int((df["Label"] == "Anomaly").sum())
@@ -67,7 +87,7 @@ def stats():
 
 @app.get("/api/anomalies")
 def anomalies(limit: int = Query(20, ge=1, le=200)):
-    df = result_df().sort_values("anomaly_score", ascending=False).head(limit)
+    df = scored_frame().sort_values("anomaly_score", ascending=False).head(limit)
     records = df[["LineId", "BlockId", "EventId", "Level", "Component", "Content", "anomaly_score", "Label"]].copy()
     records["anomaly_score"] = records["anomaly_score"].round(4)
     return records.fillna("").to_dict(orient="records")
@@ -75,7 +95,13 @@ def anomalies(limit: int = Query(20, ge=1, le=200)):
 
 @app.post("/api/retrain")
 def retrain():
-    _, metrics = train_and_evaluate()
+    logger.info("HDFS-2k retrain started")
+    try:
+        _, metrics = train_and_evaluate()
+    except Exception:
+        logger.exception("HDFS-2k retrain failed")
+        raise HTTPException(status_code=500, detail="HDFS-2k retrain failed before a new result could be returned.")
+    logger.info("HDFS-2k retrain finished")
     return metrics
 
 

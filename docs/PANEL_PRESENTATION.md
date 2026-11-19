@@ -39,28 +39,24 @@ Official test result: **precision 0.5000, recall 0.0769, F1 0.1333, FPR 0.0026**
 
 ## 3. System the panel will see
 
-Nexora Observability is a **fictional demo tenant**. Sign-in is mock (`aarav.mehta@nexora.example` / `nexora-enterprise`, or **Enter Demo Workspace**).
+OMEN X is the product name. Sign-in is mock (`aarav.mehta@nexora.example` / `nexora-enterprise`, or **Enter Demo Workspace**). Presidency University · CAI_37 is the project line.
 
-Pages: Overview, Live Logs, Alerts & Detection Center, Anomaly Investigation, Model Evaluation, Activity History.
+After sign-in the first screen is **Home**: a greeting, one status sentence, and three counts. It does not say the system is safe. Corpus charts, the research benchmark, and retrain stay on **Overview**.
 
 - **LIVE** means `/api/health` is ok. It is not a live tail.
-- **Retrain** calls `POST /api/retrain` and waits. There is no progress-stream API; the overlay is a wait state.
-- Held-out P/R/F1 appear on Model Evaluation **after** a successful retrain in that browser session.
-
----
+- **Retrain** is on Overview and Model Evaluation. It rewrites the HDFS-2k model. Do not press it in the hall.
+- Full HDFS_v1 is the dataset selector. Scores on those lines stay blank.
 
 ## 4. 8-minute demo script
 
-1. **Launch** (already running if possible). `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000`
-2. **Login.** Click Enter Demo Workspace. State: mock auth, fictional org.
-3. **Overview (90 s).** Point at 2,000 / 7 / 0.35%. Say: corpus flags, not test F1. **LIVE** = API connected.
-4. **Problem (60 s).** Labels are per BlockId. Fitting on all 2,000 lines is in-sample. We split blocks, train-only frequencies, validation threshold.
-5. **Alerts (60 s).** 7 model-flagged vs 69 labelled. Candidates, not incidents. Open **Review flagged logs**.
-6. **Retrain (wait ~10–60 s).** Show overlay stages, then toast with **7** flags. Open **Model Evaluation**: 0.5000 / 0.0769 / 0.1333 / 0.0026.
-7. **Limitation (45 s).** Recall is 1 of 13 because this file has ~1 line/block. Isolation Forest isolated rare `E14` verification lines. Future work is full HDFS traces / sequence models — not implemented.
-8. **Stop.** Offer Q&A.
+1. **Launch.** `python -m uvicorn app.main:app --host 127.0.0.1 --port 8000` from `ready/`.
+2. **Login.** Enter Demo Workspace. Say: mock account.
+3. **Home (60 s).** Read the greeting and the status line. Point at model flags, ground-truth labels, and the corpus rate. Say these are three different numbers.
+4. **Overview (90 s).** Demo dataset: 2,000 / 7 / 0.35%. Then the HDFS_v1 research cards. F1 is effectively tied; baseline PR-AUC is higher.
+5. **Dataset switch (60 s).** Full HDFS_v1. Show a parquet page and a blank score. Retrain is disabled.
+6. **Stop.** Offer Q&A. Do not open Activity History. Do not retrain live.
 
-If retrain is slow, keep talking through the split and why 0.35% is not F1.
+If they ask for the official 2k result: precision 0.5000, recall 0.0769, F1 0.1333, FPR 0.0026, on 399 held-out blocks.
 
 ---
 
@@ -88,7 +84,7 @@ Keep `results/anomaly_results.csv` intact. A corrupt CSV can break `/api/stats`.
 - **Why evaluate blocks?** `anomaly_label.csv` is one label per BlockId.
 - **What is 0.35%?** `7 / 2000` corpus flags. Not F1, not recall.
 - **Can you stream logs?** No. Explorer max is 200 scored API rows.
-- **Nexora?** Fictional university demo organisation.
+- **What is the product name?** OMEN X. The sign-in account is a mock. It is not a production identity provider.
 
 ---
 

@@ -17,7 +17,8 @@ Equivalent launch if `uvicorn` is not on PATH: `python -m uvicorn app.main:app -
 
 Open http://127.0.0.1:8000
 
-Full write-up: `docs/FINAL_PROJECT_HANDOFF.md`.  
+Start here after time away: `docs/HOW_THE_APP_WORKS.md`.  
+Full academic write-up: `docs/FINAL_PROJECT_HANDOFF.md`.  
 Panel script and numbers card: `docs/PANEL_PRESENTATION.md`.
 
 ## What is implemented

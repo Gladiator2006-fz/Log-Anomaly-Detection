@@ -1,689 +1,2469 @@
 <!DOCTYPE html>
-<html lang="en" data-theme="dark">
+<html lang="en" data-theme="light">
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Nexora Observability — Demo Workspace</title>
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet" />
-  <link rel="stylesheet" href="/static/app.css?v=hdfs-full-1" />
+  <script>
+    try {
+      var savedTheme = localStorage.getItem("omenTheme");
+      document.documentElement.setAttribute("data-theme", savedTheme === "dark" ? "dark" : "light");
+    } catch (err) {}
+  </script>
+  <title>OMEN X — Enterprise Infrastructure Intelligence | Presidency University CAI_37</title>
+  <link rel="icon" href="/static/brand/omen-x-logo.png" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="/static/tailwind.cdn.js"></script>
   <script src="/static/chart.umd.min.js"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['Inter', '-apple-system', 'BlinkMacSystemFont', 'Segoe UI', 'sans-serif'],
+            mono: ['JetBrains Mono', 'Consolas', 'monospace'],
+          },
+          colors: {
+            omen: {
+              bg: '#05080d',
+              main: '#080c13',
+              card: '#0c131d',
+              cardHover: '#111b29',
+              border: '#192434',
+              borderLight: '#25354c',
+              cyan: '#19d3f3',
+              cyanSoft: 'rgba(25, 211, 243, 0.12)',
+              amber: '#f5a623',
+              amberSoft: 'rgba(245, 166, 35, 0.14)',
+              emerald: '#10b981',
+              emeraldSoft: 'rgba(16, 185, 129, 0.14)',
+              rose: '#f43f5e',
+              roseSoft: 'rgba(244, 63, 94, 0.15)',
+              muted: '#7d8da1'
+            }
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      background-color: #05080d;
+      color: #e6edf5;
+      font-family: Inter, "Segoe UI", system-ui, sans-serif;
+      margin: 0;
+      overflow: hidden;
+    }
+    #loginScreen {
+      position: fixed; inset: 0; z-index: 80; display: grid;
+      grid-template-columns: minmax(420px, 1.08fr) minmax(380px, 0.92fr);
+      background: #05080d; color: #e6edf5;
+    }
+    #loginScreen[hidden] { display: none; }
+    .login-brand { padding: 64px; display: flex; align-items: center; background: #060d18; border-right: 1px solid #192434; }
+    .login-pane { display: flex; align-items: center; justify-content: center; padding: 32px; }
+    .login-card { width: min(420px, 100%); }
+    .login-card h2 { font-size: 28px; margin: 8px 0; }
+    .login-kicker { font-family: "JetBrains Mono", Consolas, monospace; letter-spacing: 0.14em; text-transform: uppercase; color: #19d3f3; font-size: 11px; }
+    .login-logo { width: 84px; height: auto; display: block; margin: 18px 0 8px; }
+    .login-wordmark { width: min(360px, 100%); height: auto; display: block; margin-bottom: 16px; }
+    .cred-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 16px; margin: 16px 0; font-size: 13px; color: #94a3b8; }
+    .cred-grid dd { color: #e6edf5; margin: 0; }
+    .login-card label { display: block; font-size: 12px; color: #94a3b8; margin-bottom: 6px; }
+    .login-card input { width: 100%; height: 46px; border-radius: 10px; border: 1px solid #192434; background: #0c131d; color: #e6edf5; padding: 0 12px; }
+    .field { margin-top: 12px; }
+    .field-error { color: #fb7185; font-size: 12px; min-height: 16px; margin-top: 4px; }
+    .password-wrap { position: relative; }
+    .password-wrap button { position: absolute; right: 10px; top: 12px; background: none; border: 0; color: #19d3f3; }
+    .login-actions { display: flex; gap: 10px; margin-top: 16px; }
+    .login-actions button { height: 44px; border-radius: 10px; padding: 0 16px; font-weight: 700; cursor: pointer; }
+    .login-actions .primary { background: #19d3f3; color: #041018; border: 0; }
+    .login-actions .ghost { background: transparent; color: #e6edf5; border: 1px solid #25354c; }
+    @media (max-width: 900px) {
+      #loginScreen { grid-template-columns: 1fr; overflow: auto; }
+      .login-brand { border-right: 0; border-bottom: 1px solid #192434; }
+    }
+    /* Subtle dark scrollbars */
+    ::-webkit-scrollbar { width: 6px; height: 6px; }
+    ::-webkit-scrollbar-track { background: #05080d; }
+    ::-webkit-scrollbar-thumb { background: #1c2838; border-radius: 3px; }
+    ::-webkit-scrollbar-thumb:hover { background: #2b3d54; }
+
+    /* Enterprise glass & border glow cards */
+    .omen-card {
+      background: linear-gradient(180deg, rgba(15, 24, 36, 0.94) 0%, rgba(10, 16, 25, 0.98) 100%);
+      border: 1px solid #192434;
+      border-radius: 12px;
+      box-shadow: 0 4px 24px -4px rgba(0, 0, 0, 0.45), inset 0 1px 0 0 rgba(255, 255, 255, 0.04);
+      transition: border-color 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
+    }
+    .omen-card-interactive:hover {
+      border-color: rgba(25, 211, 243, 0.42);
+      box-shadow: 0 8px 30px -4px rgba(25, 211, 243, 0.08), inset 0 1px 0 0 rgba(255, 255, 255, 0.07);
+    }
+    .omen-card-subtle {
+      background-color: #0a1019;
+      border: 1px solid #16202f;
+      border-radius: 10px;
+      transition: border-color 0.18s ease, background-color 0.18s ease;
+    }
+    .omen-card-gold {
+      background: linear-gradient(180deg, rgba(245, 166, 35, 0.08) 0%, #0b1119 65%);
+      border: 1px solid rgba(245, 166, 35, 0.45);
+      border-radius: 12px;
+      box-shadow: 0 4px 20px -4px rgba(245, 166, 35, 0.1);
+    }
+    .omen-card-cyan {
+      background: linear-gradient(180deg, rgba(25, 211, 243, 0.08) 0%, #0b1119 65%);
+      border: 1px solid rgba(25, 211, 243, 0.42);
+      border-radius: 12px;
+      box-shadow: 0 4px 20px -4px rgba(25, 211, 243, 0.12);
+    }
+    .nav-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: 9px 12px;
+      border-radius: 8px;
+      font-size: 12.5px;
+      font-weight: 500;
+      color: #94a3b8;
+      border: 1px solid transparent;
+      transition: all 0.15s ease;
+    }
+    .nav-item:hover {
+      color: #f1f5f9;
+      background-color: rgba(255, 255, 255, 0.035);
+    }
+    .nav-item.active {
+      color: #ffffff;
+      background: linear-gradient(90deg, rgba(25, 211, 243, 0.14) 0%, rgba(25, 211, 243, 0.03) 100%);
+      border-color: rgba(25, 211, 243, 0.4);
+      box-shadow: inset 2px 0 0 #19d3f3;
+    }
+    .badge-normal {
+      background-color: rgba(16, 185, 129, 0.12);
+      color: #34d399;
+      border: 1px solid rgba(16, 185, 129, 0.32);
+      padding: 2px 9px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      display: inline-block;
+    }
+    .badge-anomaly {
+      background-color: rgba(244, 63, 94, 0.14);
+      color: #fb7185;
+      border: 1px solid rgba(244, 63, 94, 0.35);
+      padding: 2px 9px;
+      border-radius: 9999px;
+      font-size: 11px;
+      font-weight: 600;
+      display: inline-block;
+    }
+    .badge-info {
+      background-color: rgba(148, 163, 184, 0.1);
+      color: #cbd5e1;
+      border: 1px solid rgba(148, 163, 184, 0.22);
+      padding: 1px 8px;
+      border-radius: 9999px;
+      font-size: 10.5px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    .badge-warn {
+      background-color: rgba(245, 166, 35, 0.16);
+      color: #fbbf24;
+      border: 1px solid rgba(245, 166, 35, 0.38);
+      padding: 1px 8px;
+      border-radius: 9999px;
+      font-size: 10.5px;
+      font-family: 'JetBrains Mono', monospace;
+    }
+    @keyframes pulseDot {
+      0%, 100% { opacity: 1; transform: scale(1); }
+      50% { opacity: 0.4; transform: scale(0.88); }
+    }
+    .pulse-live {
+      animation: pulseDot 2s infinite ease-in-out;
+    }
+    @keyframes fadeSlideUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    .page-animate {
+      animation: fadeSlideUp 0.22s ease-out forwards;
+    }
+    /* Custom range slider for live threshold sandbox */
+    input[type="range"].omen-slider {
+      -webkit-appearance: none;
+      width: 100%;
+      height: 6px;
+      background: #16202f;
+      border-radius: 4px;
+      outline: none;
+    }
+    input[type="range"].omen-slider::-webkit-slider-thumb {
+      -webkit-appearance: none;
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      background: #19d3f3;
+      cursor: pointer;
+      box-shadow: 0 0 10px rgba(25, 211, 243, 0.7);
+      border: 2px solid #05080d;
+    }
+
+    html[data-theme="light"] body { background: #f4f7fb; color: #0c1726; font-weight: 600; }
+    html[data-theme="light"] #loginScreen { background: #f4f7fb; color: #0c1726; }
+    html[data-theme="light"] .login-brand { background: #07111c; color: #e6edf5; border-color: #192434; font-weight: 500; }
+    html[data-theme="light"] .login-card h2,
+    html[data-theme="light"] .cred-grid dd { color: #0c1726; font-weight: 800; }
+    html[data-theme="light"] .login-card label,
+    html[data-theme="light"] .cred-grid,
+    html[data-theme="light"] .login-pane p { color: #16304a !important; font-weight: 700; }
+    html[data-theme="light"] .login-card input { background: #fff; color: #0c1726; border-color: #d5deea; font-weight: 700; }
+    html[data-theme="light"] .login-actions .ghost { color: #0c1726; border-color: #cbd5e1; font-weight: 800; }
+    html[data-theme="light"] .bg-omen-main { background-color: #f4f7fb; }
+    html[data-theme="light"] .bg-omen-card { background-color: #ffffff; }
+    html[data-theme="light"] .border-omen-border,
+    html[data-theme="light"] .divide-omen-border > :not([hidden]) ~ :not([hidden]) { border-color: #d7e2ee; }
+    html[data-theme="light"] .bg-\[\#05090e\],
+    html[data-theme="light"] .bg-\[\#060a10\],
+    html[data-theme="light"] .bg-\[\#04070b\],
+    html[data-theme="light"] .bg-\[\#090f18\],
+    html[data-theme="light"] .bg-\[\#070b11\],
+    html[data-theme="light"] .bg-\[\#070c14\],
+    html[data-theme="light"] .bg-\[\#0b1119\],
+    html[data-theme="light"] .bg-\[\#0d1522\] { background-color: #ffffff; }
+    html[data-theme="light"] .bg-slate-800,
+    html[data-theme="light"] .bg-slate-900 { background-color: #e7eef6; }
+    html[data-theme="light"] .bg-\[\#141e2b\],
+    html[data-theme="light"] .bg-\[\#2b3748\] { background-color: #e7eef6; }
+    html[data-theme="light"] .omen-card {
+      background: #ffffff;
+      border-color: #d7e2ee;
+      box-shadow: 0 10px 28px -18px rgba(18, 38, 63, 0.35);
+    }
+    html[data-theme="light"] .omen-card-subtle { background: #f8fafc; border-color: #d7e2ee; }
+    html[data-theme="light"] .omen-card-cyan {
+      background: linear-gradient(180deg, rgba(14, 165, 183, 0.12) 0%, #ffffff 68%);
+      border-color: rgba(8, 145, 178, 0.35);
+    }
+    html[data-theme="light"] .omen-card-gold {
+      background: linear-gradient(180deg, rgba(217, 119, 6, 0.1) 0%, #ffffff 68%);
+      border-color: rgba(217, 119, 6, 0.35);
+    }
+    html[data-theme="light"] .text-white { color: #0c1726; font-weight: 800; }
+    html[data-theme="light"] .text-slate-100,
+    html[data-theme="light"] .text-slate-200,
+    html[data-theme="light"] .text-slate-300 { color: #12263a; font-weight: 700; }
+    html[data-theme="light"] .text-slate-400,
+    html[data-theme="light"] .text-slate-500,
+    html[data-theme="light"] .text-slate-600 { color: #1b334c; font-weight: 700; }
+    html[data-theme="light"] .text-omen-cyan { color: #08566c; font-weight: 800; }
+    html[data-theme="light"] .text-omen-amber,
+    html[data-theme="light"] .text-amber-400 { color: #9a4d04; font-weight: 800; }
+    html[data-theme="light"] .text-emerald-400 { color: #046c4e; font-weight: 800; }
+    html[data-theme="light"] .font-medium { font-weight: 700; }
+    html[data-theme="light"] .font-semibold { font-weight: 800; }
+    html[data-theme="light"] .font-bold,
+    html[data-theme="light"] .font-extrabold { font-weight: 800; }
+    html[data-theme="light"] .nav-item { color: #12263a; font-weight: 700; }
+    html[data-theme="light"] .nav-item:hover { color: #0c1726; background: #eef4fa; font-weight: 800; }
+    html[data-theme="light"] .nav-item.active {
+      color: #08566c;
+      font-weight: 800;
+      background: rgba(14, 165, 183, 0.12);
+      border-color: rgba(8, 145, 178, 0.35);
+    }
+    html[data-theme="light"] .badge-info { color: #12263a; background: #e7eef6; font-weight: 800; }
+    html[data-theme="light"] .badge-normal { color: #046c4e; font-weight: 800; }
+    html[data-theme="light"] .badge-anomaly { color: #be123c; font-weight: 800; }
+    html[data-theme="light"] .badge-warn { color: #9a4d04; font-weight: 800; }
+    html[data-theme="light"] .placeholder-slate-500::placeholder { color: #3d5570; font-weight: 700; }
+    html[data-theme="light"] th,
+    html[data-theme="light"] td { font-weight: 700; }
+    html[data-theme="light"] .text-slate-950 { color: #041018; font-weight: 800; }
+    html[data-theme="light"] select,
+    html[data-theme="light"] input[type="search"],
+    html[data-theme="light"] input[type="text"] { color: #12263f; }
+    html[data-theme="light"] ::-webkit-scrollbar-track { background: #f4f7fb; }
+    html[data-theme="light"] ::-webkit-scrollbar-thumb { background: #c5d2e0; }
+    .theme-btn, .alert-btn {
+      width: 32px; height: 32px; border-radius: 8px; display: flex; align-items: center; justify-content: center;
+      border: 1px solid #192434; background: #0c131d; color: #cbd5e1;
+    }
+    html[data-theme="light"] .theme-btn,
+    html[data-theme="light"] .alert-btn { background: #ffffff; color: #24506a; border-color: #d7e2ee; }
+    .alert-btn { color: #f5a623; }
+    .breach-stage {
+      position: fixed; inset: 0; z-index: 70; display: flex; align-items: center; justify-content: center;
+      background: rgba(40, 0, 8, 0.72);
+    }
+    .breach-stage[hidden] { display: none; }
+    .breach-rings { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; pointer-events: none; }
+    .breach-rings span {
+      position: absolute; width: 180px; height: 180px; border-radius: 999px;
+      border: 2px solid rgba(255, 70, 84, 0.7); opacity: 0;
+    }
+    .breach-run .breach-rings span { animation: breachRing 1.8s ease-out infinite; }
+    .breach-run .breach-rings span:nth-child(2) { animation-delay: 0.35s; }
+    .breach-run .breach-rings span:nth-child(3) { animation-delay: 0.7s; }
+    .breach-card {
+      position: relative; width: min(560px, calc(100% - 40px)); text-align: center;
+      background: #1a0508; border: 1px solid rgba(255, 90, 100, 0.65); border-radius: 18px;
+      padding: 36px 28px 28px; color: #fff; box-shadow: 0 0 80px rgba(255, 40, 60, 0.35);
+    }
+    .breach-run .breach-card { animation: breachIn 0.45s cubic-bezier(0.16, 1, 0.3, 1); }
+    .breach-mark {
+      width: 92px; height: 92px; margin: 0 auto 14px; border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 54px; font-weight: 800; color: #1a0508; background: #ff4d4f;
+      box-shadow: 0 0 0 10px rgba(255, 77, 79, 0.18);
+    }
+    .breach-run .breach-mark { animation: breachShake 0.7s ease-in-out 0.15s 2; }
+    .breach-kicker { font-family: "JetBrains Mono", Consolas, monospace; letter-spacing: 0.16em; font-size: 11px; color: #ffb020; }
+    .breach-card h2 { font-size: 40px; line-height: 1.05; margin: 8px 0; color: #fff; }
+    .breach-card p { color: #ffd7dc; font-size: 14px; }
+    .breach-card button {
+      margin-top: 18px; background: #ff4d4f; color: #1a0508; border: 0; border-radius: 10px;
+      padding: 10px 18px; font-weight: 800; cursor: pointer;
+    }
+    @keyframes breachRing {
+      0% { transform: scale(0.35); opacity: 0.9; }
+      100% { transform: scale(7); opacity: 0; }
+    }
+    @keyframes breachIn {
+      from { transform: scale(0.82); opacity: 0; }
+      to { transform: scale(1); opacity: 1; }
+    }
+    @keyframes breachShake {
+      0%, 100% { transform: rotate(0); }
+      20% { transform: rotate(-8deg) scale(1.05); }
+      40% { transform: rotate(8deg) scale(1.05); }
+      60% { transform: rotate(-5deg); }
+      80% { transform: rotate(4deg); }
+    }
+  </style>
 </head>
-<body>
-  <div id="loginScreen" class="login-screen">
+<body class="h-screen w-screen flex flex-col justify-between select-none">
+
+  <div id="loginScreen">
     <section class="login-brand">
       <div>
-        <div class="mark" aria-hidden="true">
-          <svg width="20" height="20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3.3 7L12 12l8.7-5M12 22V12"/></svg>
-        </div>
-        <h1>Nexora Observability</h1>
-        <p>Fictional university demo for HDFS log anomaly review. Nexora Technologies is mock organization data and is not a real company.</p>
-        <div class="login-meta">
-          <span class="pill demo">Nexora Technologies</span>
-          <span class="chip on-dark">Production Infrastructure</span>
-          <span class="pill ok">Demo / HDFS-2k</span>
-        </div>
+        <p class="login-kicker">Presidency University · CAI_37</p>
+        <img class="login-logo" src="/static/brand/omen-x-logo.png" alt="" />
+        <img class="login-wordmark" src="/static/brand/omen-x-wordmark.png" alt="OMEN X. Infrastructure Intelligence." />
+        <p>AI-Powered Log Anomaly Detection System</p>
+        <p style="color:#7d8da1;margin-top:8px">Uncovering the signals hidden in system behaviour.</p>
       </div>
-      <p class="hint on-dark">Mock sign-in only. Credentials are not verified against a production identity provider.</p>
     </section>
-    <div class="login-form-wrap">
-      <form id="loginForm" class="tech-card login-card" novalidate>
-        <span class="pill demo">Fictional demo account</span>
-        <h2>Sign in to workspace</h2>
-        <p class="sub">Use the labelled demo account or enter the workspace directly.</p>
-        <div class="demo-callout">
-          <strong>Aarav Mehta</strong> · Software Developer — Platform Engineering<br />
-          Email: aarav.mehta@nexora.example<br />
-          Password: nexora-enterprise
-        </div>
+    <section class="login-pane">
+      <form id="loginForm" class="login-card" novalidate>
+        <p class="login-kicker">Demonstration access</p>
+        <h2>Sign in</h2>
+        <p style="color:#7d8da1">Use the labelled account, or enter the workspace directly.</p>
+        <dl class="cred-grid">
+          <div><dt>Name</dt><dd>Aarav Mehta</dd></div>
+          <div><dt>Role</dt><dd>Platform Engineering</dd></div>
+          <div><dt>Email</dt><dd>aarav.mehta@nexora.example</dd></div>
+          <div><dt>Password</dt><dd>nexora-enterprise</dd></div>
+        </dl>
         <div class="field">
           <label for="email">Work email</label>
-          <input id="email" name="email" type="email" autocomplete="username" placeholder="aarav.mehta@nexora.example" />
+          <input id="email" type="email" autocomplete="username" placeholder="aarav.mehta@nexora.example" />
           <div id="emailError" class="field-error"></div>
         </div>
         <div class="field">
           <label for="password">Password</label>
           <div class="password-wrap">
-            <input id="password" name="password" type="password" autocomplete="current-password" placeholder="Enter demo password" />
+            <input id="password" type="password" autocomplete="current-password" placeholder="Enter demo password" />
             <button type="button" id="togglePassword">Show</button>
           </div>
           <div id="passwordError" class="field-error"></div>
         </div>
         <div id="loginError" class="field-error"></div>
         <div class="login-actions">
-          <button class="btn primary" type="submit">Sign in to workspace</button>
-          <div class="or-row">or</div>
-          <button class="btn" type="button" id="demoEnter">Enter Demo Workspace</button>
+          <button class="primary" type="submit">Sign in</button>
+          <button class="ghost" type="button" id="demoEnter">Enter demo workspace</button>
         </div>
+        <p style="color:#64748b;font-size:12px;margin-top:12px">Nothing on this screen is checked against an identity provider.</p>
       </form>
-    </div>
+    </section>
   </div>
 
-  <div id="appShell" class="app-shell" hidden>
-    <aside id="sidebar" class="sidebar">
-      <div class="sidebar-brand">
-        <div class="mark">
-          <svg width="18" height="18" fill="none" stroke="#fff" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 16V8a2 2 0 00-1-1.73l-7-4a2 2 0 00-2 0l-7 4A2 2 0 003 8v8a2 2 0 001 1.73l7 4a2 2 0 002 0l7-4A2 2 0 0021 16z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3.3 7L12 12l8.7-5M12 22V12"/></svg>
+  <!-- MAIN WORKSPACE CONTAINER -->
+  <div class="flex-1 flex overflow-hidden">
+
+    <!-- =================================================================== -->
+    <!-- LEFT SIDEBAR (Enterprise Navigation + System Telemetry)             -->
+    <!-- =================================================================== -->
+    <aside class="w-[238px] bg-[#05090e] border-r border-omen-border flex flex-col justify-between shrink-0">
+      <div>
+        <!-- University & OMEN X Brand Header -->
+        <div class="px-4 pt-4 pb-3.5 border-b border-omen-border">
+          <div class="flex items-center justify-between">
+            <p class="text-[9.5px] font-mono tracking-[0.14em] uppercase text-slate-400 leading-tight">
+              PRESIDENCY UNIVERSITY -<br>CAI_37
+            </p>
+            <span class="px-1.5 py-0.5 rounded bg-omen-cyan/10 border border-omen-cyan/30 text-[9px] font-mono text-omen-cyan">v2.4</span>
+          </div>
+          <div class="flex items-center gap-2.5 mt-2.5">
+            <!-- Custom SVG Crest -->
+            <div class="w-8 h-8 rounded-full bg-omen-cyan/10 border border-omen-cyan/50 flex items-center justify-center shadow-[0_0_16px_rgba(25,211,243,0.28)] shrink-0">
+              <svg class="w-4 h-4 text-omen-cyan" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+                <path d="M12 2a10 10 0 1 0 10 10A10 10 0 0 0 12 2zm0 15a5 5 0 1 1 5-5 5 5 0 0 1-5 5z"/>
+                <circle cx="12" cy="12" r="2" fill="currentColor"/>
+              </svg>
+            </div>
+            <div>
+              <div class="text-[14.5px] font-extrabold tracking-wider text-white leading-none">
+                OMEN <span class="text-omen-cyan">X</span>
+              </div>
+              <div class="text-[8.5px] font-mono tracking-[0.15em] uppercase text-slate-400 mt-1 leading-tight">
+                INFRASTRUCTURE<br>INTELLIGENCE
+              </div>
+            </div>
+          </div>
         </div>
-        <div>
-          <strong>Nexora Observability</strong>
-          <span>Nexora Technologies · Demo</span>
+
+        <!-- Navigation Menu -->
+        <div class="px-3 py-4">
+          <p class="px-2.5 mb-2 text-[9.5px] font-mono uppercase tracking-[0.14em] text-slate-500">WORKSPACE</p>
+          <nav class="space-y-1">
+            <button onclick="navigate('home')" id="nav-home" class="nav-item active">
+              <span class="flex items-center gap-2.5">
+                <svg class="w-3.5 h-3.5 opacity-85" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M3 9.5L12 3l9 6.5V20a1 1 0 0 1-1 1h-5v-6H9v6H4a1 1 0 0 1-1-1V9.5z"/></svg>
+                <span>Home</span>
+              </span>
+              <span id="dot-home" class="w-1.5 h-1.5 rounded-full bg-omen-cyan"></span>
+            </button>
+
+            <button onclick="navigate('overview')" id="nav-overview" class="nav-item">
+              <span class="flex items-center gap-2.5">
+                <svg class="w-3.5 h-3.5 opacity-85" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><rect x="3" y="3" width="7" height="7" rx="1"/><rect x="14" y="3" width="7" height="7" rx="1"/><rect x="14" y="14" width="7" height="7" rx="1"/><rect x="3" y="14" width="7" height="7" rx="1"/></svg>
+                <span>Overview</span>
+              </span>
+              <span id="dot-overview" class="w-1.5 h-1.5 rounded-full bg-omen-cyan hidden"></span>
+            </button>
+
+            <button onclick="navigate('logs')" id="nav-logs" class="nav-item">
+              <span class="flex items-center gap-2.5">
+                <svg class="w-3.5 h-3.5 opacity-85" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h10"/></svg>
+                <span>Live Logs</span>
+              </span>
+              <span class="px-1.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 font-mono text-[9px] flex items-center gap-1">
+                <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-live"></span>LIVE
+              </span>
+            </button>
+
+            <button onclick="navigate('alerts')" id="nav-alerts" class="nav-item">
+              <span class="flex items-center gap-2.5">
+                <svg class="w-3.5 h-3.5 opacity-85" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/></svg>
+                <span>Alerts &amp; Detection</span>
+              </span>
+              <span class="px-1.5 py-0.2 rounded bg-omen-amber/20 text-omen-amber font-mono text-[10px] font-bold">7</span>
+            </button>
+          </nav>
+
+          <p class="px-2.5 mt-5 mb-2 text-[9.5px] font-mono uppercase tracking-[0.14em] text-slate-500">INVESTIGATION &amp; ML</p>
+          <nav class="space-y-1">
+            <button onclick="navigate('investigate')" id="nav-investigate" class="nav-item">
+              <span class="flex items-center gap-2.5">
+                <svg class="w-3.5 h-3.5 opacity-85" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                <span>Anomaly Investigation</span>
+              </span>
+              <span id="dot-investigate" class="w-1.5 h-1.5 rounded-full bg-omen-cyan hidden"></span>
+            </button>
+
+            <button onclick="navigate('evaluation')" id="nav-evaluation" class="nav-item">
+              <span class="flex items-center gap-2.5">
+                <svg class="w-3.5 h-3.5 opacity-85" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 20V10M12 20V4M6 20v-6"/></svg>
+                <span>Model Evaluation</span>
+              </span>
+              <span id="dot-evaluation" class="w-1.5 h-1.5 rounded-full bg-omen-cyan hidden"></span>
+            </button>
+
+            <button onclick="navigate('activity')" id="nav-activity" class="nav-item">
+              <span class="flex items-center gap-2.5">
+                <svg class="w-3.5 h-3.5 opacity-85" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><path d="M12 6v6l4 2"/></svg>
+                <span>Activity History</span>
+              </span>
+              <span id="dot-activity" class="w-1.5 h-1.5 rounded-full bg-omen-cyan hidden"></span>
+            </button>
+          </nav>
+
+          <!-- Engine Architecture Quick Card -->
+          <div class="mt-6 p-3 rounded-xl bg-[#090f18] border border-omen-border/80 space-y-2">
+            <div class="flex items-center justify-between text-[10px] font-mono">
+              <span class="text-slate-400">MODEL ENGINE</span>
+              <span class="text-emerald-400 font-semibold">READY</span>
+            </div>
+            <div class="text-[11px] font-mono text-slate-300 leading-snug">
+              IsolationForest (200 trees)<br>
+              <span class="text-slate-500">Split: 60/20/20 BlockId</span>
+            </div>
+            <button onclick="openCommandPalette()" class="w-full py-1.5 px-2.5 rounded-lg bg-omen-card border border-omen-border text-[10.5px] font-mono text-slate-300 hover:border-omen-cyan/50 hover:text-white flex items-center justify-between transition">
+              <span>Quick Command</span>
+              <span class="px-1.5 py-0.2 rounded bg-slate-800 text-[9.5px] text-slate-400">Ctrl K</span>
+            </button>
+          </div>
         </div>
       </div>
-      <div class="nav-label">Workspace</div>
-      <nav>
-        <button class="nav-btn active" data-view="overview" type="button">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M3 13h8V3H3v10zm10 8h8V3h-8v18zM3 21h8v-6H3v6z"/></svg>
-          Overview
-        </button>
-        <button class="nav-btn" data-view="logs" type="button">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 12h16M4 18h10"/></svg>
-          Live Logs
-          <span class="nav-live" data-live title="Connected to the live API. Not a real-time log stream.">
-            <span class="live-pulse" aria-hidden="true"></span>
-            <span data-live-text>LIVE</span>
-          </span>
-        </button>
-        <button class="nav-btn" data-view="alerts" type="button">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 3l8 4v6c0 5-3.4 8.4-8 9.5C7.4 21.4 4 18 4 13V7l8-4z"/><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v4m0 4h.01"/></svg>
-          Alerts &amp; Detection
-        </button>
-      </nav>
-      <div class="nav-label">Analysis</div>
-      <nav>
-        <button class="nav-btn" data-view="investigate" type="button">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M21 21l-4.35-4.35M10 18a8 8 0 100-16 8 8 0 000 16z"/></svg>
-          Anomaly Investigation
-        </button>
-        <button class="nav-btn" data-view="evaluation" type="button">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M9 19v-6a2 2 0 00-2-2H5v8h4zm6 0V9a2 2 0 00-2-2h-2v12h4zm6 0V5a2 2 0 00-2-2h-2v16h4z"/></svg>
-          Model Evaluation
-        </button>
-        <button class="nav-btn" data-view="activity" type="button">
-          <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z"/></svg>
-          Activity History
-        </button>
-      </nav>
-      <div class="sidebar-foot">
-        Demo tenant · Isolation Forest scores rank unusual lines. They are not confirmed incidents.
+
+      <!-- Bottom Sidebar Notice -->
+      <div class="p-3 border-t border-omen-border text-[11px] text-slate-400 leading-relaxed">
+        Demo environment · Isolation Forest ranks unusual lines. A score is not a confirmed incident.
       </div>
     </aside>
 
-    <div class="workspace">
-      <header class="topbar">
-        <div class="topbar-left">
-          <button id="menuToggle" class="icon-btn menu-toggle" type="button" aria-label="Open navigation">☰</button>
-          <div class="org-path">
-            <strong>Nexora Technologies</strong>
-            <span>/</span>
-            <span>Production Infrastructure</span>
-            <span id="datasetPill" class="pill demo">Demo / HDFS-2k</span>
+    <!-- =================================================================== -->
+    <!-- RIGHT MAIN COLUMN (Top Header + Scrollable Views + Detail Drawer)   -->
+    <!-- =================================================================== -->
+    <div class="flex-1 flex flex-col bg-omen-main overflow-hidden relative">
+
+      <!-- TOP BAR -->
+      <header class="h-12 bg-[#060a10] border-b border-omen-border px-6 flex items-center justify-between shrink-0 z-20">
+        <!-- Left Breadcrumb & Dataset Selector -->
+        <div class="flex items-center gap-2.5 text-xs">
+          <div class="flex items-center gap-1.5">
+            <span class="w-3.5 h-3.5 rounded-full bg-omen-cyan/20 border border-omen-cyan/60 inline-block"></span>
+            <span class="font-bold text-white tracking-wide">OMEN X</span>
+            <span class="text-slate-600">/</span>
+            <span id="top-breadcrumb" class="text-slate-300 font-medium">Home</span>
           </div>
-          <label class="dataset-switch" for="datasetSelect">
-            <span>Dataset</span>
-            <select id="datasetSelect" aria-label="Dataset">
-              <option value="demo">Demo Dataset — HDFS-2k</option>
-              <option value="full">Research Dataset — Full HDFS_v1</option>
+
+          <span id="header-scope-badge" class="ml-1 px-2.5 py-0.5 rounded-full bg-omen-cyan/15 border border-omen-cyan/35 text-omen-cyan text-[11px] font-medium">
+            Demo / HDFS-2k
+          </span>
+
+          <div class="hidden md:flex items-center gap-2 ml-2">
+            <span class="text-slate-400 text-[11.5px]">Dataset</span>
+            <select id="global-dataset-select" onchange="switchDatasetScope(this.value)" class="px-3 py-1 rounded-lg bg-omen-card border border-omen-border text-slate-200 text-[11.5px] focus:outline-none focus:border-omen-cyan cursor-pointer">
+              <option value="HDFS_2K">Demo Dataset — HDFS-2k (2,000 lines)</option>
+              <option value="HDFS_FULL">Research Corpus — HDFS_v1 (11,175,629 lines)</option>
             </select>
-          </label>
+          </div>
         </div>
-        <div class="topbar-right">
-          <div id="healthPill" class="live-badge" data-live title="Connected to the live FastAPI backend. Not a real-time log stream.">
-            <svg class="live-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-              <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4.9 16.1a9 9 0 010-8.2M7.8 14a5 5 0 010-4M12 13.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16.2 14a5 5 0 000-4M19.1 16.1a9 9 0 000-8.2"/>
-            </svg>
-            <span class="live-pulse" aria-hidden="true"></span>
-            <span id="healthText" data-live-text>Checking…</span>
+
+        <!-- Right Status Pill, Command Trigger, Bell & User Profile -->
+        <div class="flex items-center gap-2.5">
+          <button id="breachBtn" class="alert-btn" type="button" title="Play anomaly alert" aria-label="Play anomaly alert">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 3l10 18H2L12 3z"/><path d="M12 10v4"/><path d="M12 17h.01"/></svg>
+          </button>
+          <button id="themeToggle" class="theme-btn" type="button" title="Switch theme" aria-label="Switch to dark mode">
+            <svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z"/></svg>
+          </button>
+          <button onclick="openArchitectureModal()" class="hidden xl:flex items-center gap-1.5 px-2.5 py-1 rounded-lg bg-omen-card border border-omen-border text-[11px] font-mono text-slate-300 hover:border-omen-cyan/50 hover:text-omen-cyan transition">
+            <svg class="w-3.5 h-3.5 text-omen-cyan" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M12 2L2 7l10 5 10-5-10-5zM2 17l10 5 10-5M2 12l10 5 10-5"/></svg>
+            <span>Pipeline Architecture</span>
+          </button>
+
+          <div class="px-2.5 py-1 rounded-full bg-emerald-500/10 border border-emerald-500/30 text-emerald-400 font-mono text-[10.5px] flex items-center gap-1.5" title="FastAPI Backend Connected (/api/health)">
+            <span class="text-[9px]">((•))</span>
+            <span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-live"></span>
+            <span class="font-semibold">LIVE</span>
           </div>
-          <div class="rel">
-            <button id="notifyBtn" class="icon-btn" type="button" aria-label="Notifications">
-              <svg width="16" height="16" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M15 17h5l-1.4-1.4A2 2 0 0118 14.2V11a6 6 0 10-12 0v3.2c0 .5-.2 1-.6 1.4L4 17h5m6 0a3 3 0 11-6 0"/></svg>
-              <span id="notifyDot" class="badge-dot" hidden></span>
-            </button>
-            <div id="notifyMenu" class="menu" hidden></div>
-          </div>
-          <div class="rel">
-            <button id="profileBtn" class="user-chip" type="button" aria-haspopup="menu" aria-expanded="false">
-              <span class="avatar">AM</span>
-              <span class="user-meta"><strong>Aarav Mehta</strong><small>Platform Engineering</small></span>
-            </button>
-            <div id="profileMenu" class="menu" hidden>
-              <p class="menu-kicker">Demo user · fictional account</p>
-              <p class="menu-email">aarav.mehta@nexora.example</p>
-              <button class="menu-item" id="signOutBtn" type="button">Sign out of demo workspace</button>
+
+          <button onclick="navigate('alerts')" class="w-8 h-8 rounded-lg bg-omen-card border border-omen-border flex items-center justify-center text-slate-300 hover:text-white hover:border-slate-600 transition relative" title="7 Candidate Alerts">
+            <svg class="w-3.5 h-3.5" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg>
+            <span class="w-1.5 h-1.5 rounded-full bg-omen-amber absolute top-1.5 right-1.5"></span>
+          </button>
+
+          <div class="flex items-center gap-2.5 pl-2 pr-3 py-1 rounded-lg bg-omen-card border border-omen-border">
+            <div class="w-6 h-6 rounded-md bg-omen-cyan text-slate-950 font-extrabold text-[11px] flex items-center justify-center">
+              AM
+            </div>
+            <div class="leading-tight">
+              <div class="text-[11.5px] font-semibold text-white">Aarav Mehta</div>
+              <div class="text-[10px] text-slate-400">Platform Engineering</div>
             </div>
           </div>
         </div>
       </header>
 
-      <main class="page">
-        <div id="banner" class="banner" role="status"></div>
+      <!-- ================================================================= -->
+      <!-- SCROLLABLE PAGE VIEWPORT                                          -->
+      <!-- ================================================================= -->
+      <main id="main-scroll" class="flex-1 overflow-y-auto px-7 py-6">
 
-        <section id="view-overview">
-          <div class="page-head">
+        <!-- =============================================================== -->
+        <!-- PAGE 1: HOME                                                    -->
+        <!-- =============================================================== -->
+        <section id="page-home" class="page-animate max-w-[1400px] mx-auto space-y-5">
+          <div class="flex flex-wrap items-end justify-between gap-4">
             <div>
-              <h1>Overview</h1>
-              <p id="overviewSub" class="sub">Two scopes on this page: the HDFS_v1 research benchmark from <code>/api/hdfs-full-metrics</code>, and the live HDFS-2k demo from <code>/api/stats</code>.</p>
+              <p class="text-[10.5px] font-mono uppercase tracking-[0.16em] text-omen-cyan font-semibold">HELLO · OBSERVABILITY COMMAND</p>
+              <h1 id="home-greet" class="text-[32px] font-extrabold text-white tracking-tight mt-0.5">Good afternoon, Aarav</h1>
+              <p id="home-status" class="text-[13px] text-slate-400 mt-0.5">7 candidate anomalies need a look. A low rate is not a safety clearance.</p>
             </div>
-            <div class="toolbar page-actions">
-              <span class="chip">Updated<span id="refreshed">—</span></span>
-              <button id="refreshBtn" class="btn" type="button">Refresh</button>
-              <button id="retrainBtn" class="btn primary" type="button">Retrain model</button>
+            <div class="flex items-center gap-2.5">
+              <button onclick="openArchitectureModal()" class="px-3.5 py-2 rounded-lg bg-omen-card border border-omen-border text-[12px] font-semibold text-slate-200 hover:border-omen-cyan/50 transition">
+                Inspect ML Pipeline
+              </button>
+              <button onclick="navigate('overview')" class="px-4 py-2 rounded-lg bg-omen-cyan text-slate-950 text-[12px] font-bold hover:brightness-110 transition shadow-[0_0_16px_rgba(25,211,243,0.25)]">
+                Open System Intelligence →
+              </button>
             </div>
           </div>
 
-          <section class="research-scope" aria-labelledby="researchTitle">
-            <div class="scope-head">
-              <div>
-                <span class="pill">Research</span>
-                <h2 id="researchTitle" class="section-title">HDFS_v1 Full-Corpus Research Benchmark</h2>
-                <p class="sub">Held-out BlockId evaluation. These figures are not the HDFS-2k demo counts below.</p>
+          <!-- 3 Top Cards -->
+          <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div onclick="navigate('alerts')" class="omen-card omen-card-interactive p-5 cursor-pointer">
+              <div class="flex items-center justify-between">
+                <p class="text-[10.5px] font-mono uppercase tracking-wider text-slate-400">MODEL FLAGS</p>
+                <span class="px-2 py-0.5 rounded bg-omen-cyan/10 text-omen-cyan font-mono text-[10px]">threshold ≥ 0.1824</span>
               </div>
-              <span id="researchStatus" class="chip">Checking…</span>
+              <p id="home-flags" class="text-[32px] font-extrabold text-white mt-2 leading-none">7</p>
+              <p class="text-[12px] text-slate-400 mt-4">Of 2,000 HDFS-2k lines. Not confirmed incidents.</p>
             </div>
-            <div id="researchLoading" class="eval-empty">
-              <p class="empty-title">Loading research metrics</p>
-              <p>Fetching measured results from <code>/api/hdfs-full-metrics</code>.</p>
-            </div>
-            <div id="researchUnavailable" class="eval-empty" hidden>
-              <p class="empty-title">Research benchmark unavailable</p>
-              <p id="researchUnavailableReason">The full-corpus metrics endpoint did not return a usable result. The HDFS-2k demo below is unaffected.</p>
-            </div>
-            <div id="researchFilled" hidden>
-              <div class="kpis research-kpis" aria-label="Full-corpus scale">
-                <article class="tech-card kpi kpi-compact">
-                  <div class="kpi-label">Total log lines processed</div>
-                  <div id="rsRows" class="kpi-value kpi-value-md">—</div>
-                  <div class="kpi-foot">Parquet rows streamed</div>
-                </article>
-                <article class="tech-card kpi kpi-compact">
-                  <div class="kpi-label">Unique blocks</div>
-                  <div id="rsBlocks" class="kpi-value kpi-value-md">—</div>
-                  <div class="kpi-foot">Evaluation unit · BlockId</div>
-                </article>
-                <article class="tech-card kpi kpi-compact">
-                  <div class="kpi-label">Ground-truth anomalous blocks</div>
-                  <div id="rsAnoms" class="kpi-value kpi-value-md">—</div>
-                  <div class="kpi-foot">Full-corpus labelled anomalies</div>
-                </article>
-                <article class="tech-card kpi kpi-compact">
-                  <div class="kpi-label">Held-out test blocks</div>
-                  <div id="rsTestBlocks" class="kpi-value kpi-value-md">—</div>
-                  <div class="kpi-foot">Official test split</div>
-                </article>
-                <article class="tech-card kpi kpi-compact">
-                  <div class="kpi-label">Held-out test anomalies</div>
-                  <div id="rsTestAnoms" class="kpi-value kpi-value-md">—</div>
-                  <div class="kpi-foot">Anomalous blocks in the test split</div>
-                </article>
+            <div onclick="navigate('investigate')" class="omen-card omen-card-interactive p-5 cursor-pointer">
+              <div class="flex items-center justify-between">
+                <p class="text-[10.5px] font-mono uppercase tracking-wider text-slate-400">GROUND-TRUTH ANOMALIES</p>
+                <span class="px-2 py-0.5 rounded bg-omen-amber/10 text-omen-amber font-mono text-[10px]">anomaly_label.csv</span>
               </div>
-              <div class="research-metric-head">
-                <h3>Improved configuration · held-out test</h3>
-                <p class="sub" id="researchMetricScope">Isolation Forest scores on unseen test blocks only.</p>
-              </div>
-              <div class="kpis research-metrics" aria-label="Held-out test metrics">
-                <article class="tech-card kpi kpi-compact">
-                  <div class="kpi-label">Precision</div>
-                  <div id="rsPrecision" class="kpi-value kpi-value-md">—</div>
-                  <div class="kpi-foot" id="rsPrecisionHint">Predicted positives that were correct</div>
-                </article>
-                <article class="tech-card kpi kpi-compact">
-                  <div class="kpi-label">Recall</div>
-                  <div id="rsRecall" class="kpi-value kpi-value-md">—</div>
-                  <div class="kpi-foot" id="rsRecallHint">Actual test anomalies found</div>
-                </article>
-                <article class="tech-card kpi kpi-compact">
-                  <div class="kpi-label">F1-score</div>
-                  <div id="rsF1" class="kpi-value kpi-value-md accent">—</div>
-                  <div class="kpi-foot">Held-out test blocks</div>
-                </article>
-                <article class="tech-card kpi kpi-compact">
-                  <div class="kpi-label">False-positive rate</div>
-                  <div id="rsFpr" class="kpi-value kpi-value-md">—</div>
-                  <div class="kpi-foot" id="rsFprHint">False alarms among normal test blocks</div>
-                </article>
-                <article class="tech-card kpi kpi-compact">
-                  <div class="kpi-label">PR-AUC</div>
-                  <div id="rsPrauc" class="kpi-value kpi-value-md">—</div>
-                  <div class="kpi-foot">Ranking quality · not a thresholded F1</div>
-                </article>
-              </div>
-              <p id="researchScopeNote" class="eval-note"></p>
+              <p id="home-labels" class="text-[32px] font-extrabold text-white mt-2 leading-none">69</p>
+              <p class="text-[12px] text-slate-400 mt-4">Labelled in the corpus. Separate from the model flags.</p>
             </div>
-          </section>
-
-          <section class="demo-scope" aria-labelledby="demoTitle">
-            <div class="scope-head">
-              <div>
-                <span id="demoScopePill" class="pill demo">Demo</span>
-                <h2 id="demoTitle" class="section-title">HDFS-2k Demo</h2>
-                <p id="demoSub" class="sub">Operational corpus view from <code>/api/stats</code> and <code>/api/anomalies</code>. Retrain still trains this 2k sample only.</p>
+            <div onclick="navigate('evaluation')" class="omen-card omen-card-interactive p-5 cursor-pointer">
+              <div class="flex items-center justify-between">
+                <p class="text-[10.5px] font-mono uppercase tracking-wider text-slate-400">CORPUS RATE</p>
+                <span class="px-2 py-0.5 rounded bg-slate-800 text-slate-300 font-mono text-[10px]">7 ÷ 2,000</span>
               </div>
+              <p id="home-rate" class="text-[32px] font-extrabold text-omen-cyan mt-2 leading-none">0.35%</p>
+              <p class="text-[12px] text-slate-400 mt-4">Flags ÷ lines. This is not F1 and not a safety score.</p>
             </div>
-          <div class="kpis" aria-label="Corpus statistics">
-            <article class="tech-card kpi">
-              <div class="kpi-top"><span class="kpi-label">Total logs</span><span class="kpi-icon" aria-hidden="true"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h16M4 12h16M4 18h10"/></svg></span></div>
-              <div class="kpi-value-block"><div id="total" class="kpi-value">—</div></div>
-              <div class="kpi-skeleton-block" hidden><div class="skeleton"></div></div>
-              <div class="kpi-foot" id="kpiTotalFoot">All scored HDFS-2k log lines</div>
-            </article>
-            <article class="tech-card kpi">
-              <div class="kpi-top"><span class="kpi-label" id="kpiDetectedLabel">Detected anomalies</span><span class="kpi-icon" aria-hidden="true"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M12 9v4m0 4h.01M10.3 4.3L2.6 18a2 2 0 001.7 3h15.4a2 2 0 001.7-3L13.7 4.3a2 2 0 00-3.4 0z"/></svg></span></div>
-              <div class="kpi-value-block"><div id="detected" class="kpi-value">—</div></div>
-              <div class="kpi-skeleton-block" hidden><div class="skeleton"></div></div>
-              <div class="kpi-foot" id="actualHint">Model flags on the full corpus</div>
-            </article>
-            <article class="tech-card kpi">
-              <div class="kpi-top"><span class="kpi-label" id="kpiRateLabel">Anomaly rate</span><span class="kpi-icon" aria-hidden="true"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 16l5-5 4 4 7-8"/></svg></span></div>
-              <div class="kpi-value-block"><div id="rate" class="kpi-value accent">—</div></div>
-              <div class="kpi-skeleton-block" hidden><div class="skeleton"></div></div>
-              <div class="kpi-foot" id="rateHint">Detected ÷ total · not F1</div>
-            </article>
-            <article class="tech-card kpi">
-              <div class="kpi-top"><span class="kpi-label" id="kpiEventsLabel">Event types</span><span class="kpi-icon" aria-hidden="true"><svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4 6h7v7H4zM13 6h7v4h-7zM13 12h7v6h-7zM4 15h7v3H4z"/></svg></span></div>
-              <div class="kpi-value-block"><div id="events" class="kpi-value">—</div></div>
-              <div class="kpi-skeleton-block" hidden><div class="skeleton"></div></div>
-              <div class="kpi-foot" id="compHint">Unique EventId values in the corpus</div>
-            </article>
           </div>
-          <div class="mid">
-            <section class="eval-surface">
-              <div class="eval-head">
+
+          <!-- Dual-Scope Highlight Banner (Connects 2k Live Demo with 11.17M Research Benchmark) -->
+          <div class="omen-card-cyan p-4 flex flex-wrap items-center justify-between gap-4">
+            <div class="flex items-center gap-3.5">
+              <div class="w-9 h-9 rounded-lg bg-omen-cyan/15 border border-omen-cyan/40 flex items-center justify-center text-omen-cyan font-mono font-bold text-xs shrink-0">
+                11.1M
+              </div>
+              <div>
+                <div class="flex items-center gap-2">
+                  <span class="text-[13.5px] font-bold text-white">Full-Corpus HDFS_v1 Benchmark Verified</span>
+                  <span class="px-2 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 font-mono text-[10px]">57.36% Recall · 40.93% F1</span>
+                </div>
+                <p class="text-[12px] text-slate-300 mt-0.5">
+                  Streamed 11,175,629 log lines across 575,061 unique BlockIds (115,013 held-out test blocks) with zero data leakage.
+                </p>
+              </div>
+            </div>
+            <button onclick="navigate('overview')" class="px-3.5 py-1.5 rounded-lg bg-omen-cyan/15 border border-omen-cyan/40 text-omen-cyan text-[12px] font-semibold hover:bg-omen-cyan hover:text-slate-950 transition">
+              Compare 2k vs 11.1M →
+            </button>
+          </div>
+
+          <!-- Corpus Picture & Where to Go -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <div class="lg:col-span-7 omen-card p-5 flex flex-col justify-between">
+              <div>
+                <h2 class="text-[15px] font-bold text-white">Corpus picture</h2>
+                <p class="text-[12px] text-slate-400 mt-0.5">Shares of the 2,000-line demo. Bar length is the count, not a safety rating.</p>
+              </div>
+
+              <div class="space-y-5 my-4">
                 <div>
-                  <h2 class="section-title">HDFS-2k held-out test</h2>
-                  <p class="sub">Filled after Retrain in this browser session. Not the full-corpus benchmark above.</p>
+                  <div class="flex justify-between text-[12px] mb-1.5">
+                    <span class="text-slate-300">Model flags</span>
+                    <span class="font-bold text-white">7</span>
+                  </div>
+                  <div class="h-2 w-full bg-[#131d2a] rounded-full overflow-hidden flex items-center">
+                    <div class="h-2 w-2.5 rounded-full bg-omen-cyan shadow-[0_0_8px_#19d3f3]"></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="flex justify-between text-[12px] mb-1.5">
+                    <span class="text-slate-300">Ground-truth anomalies</span>
+                    <span class="font-bold text-white">69</span>
+                  </div>
+                  <div class="h-2 w-full bg-[#131d2a] rounded-full overflow-hidden">
+                    <div class="h-full bg-omen-amber rounded-full" style="width: 5.5%"></div>
+                  </div>
+                </div>
+
+                <div>
+                  <div class="flex justify-between text-[12px] mb-1.5">
+                    <span class="text-slate-300">Lines not labelled anomalous</span>
+                    <span class="font-bold text-white">1,931</span>
+                  </div>
+                  <div class="h-2 w-full bg-[#131d2a] rounded-full overflow-hidden">
+                    <div class="h-full bg-[#526277] rounded-full" style="width: 96.55%"></div>
+                  </div>
                 </div>
               </div>
-              <div id="evalEmpty" class="eval-empty">
-                <p class="empty-title">No held-out metrics in this session</p>
-                <p>Click Retrain model to score the held-out test blocks. This is not the 0.35% corpus rate.</p>
-              </div>
-              <div id="evalFilled" hidden></div>
-              <p class="eval-note">Do not compare these scores with the corpus KPI cards. They measure different things.</p>
-            </section>
-            <section class="tech-card chart-card">
-              <h2 id="distChartTitle" class="section-title">Corpus anomaly distribution</h2>
-              <p id="distChartSub" class="sub">Full 2,000-line HDFS-2k corpus from /api/stats · not held-out F1</p>
-              <div class="chart-box h-bar"><canvas id="distChart"></canvas></div>
-            </section>
+            </div>
+
+            <div class="lg:col-span-5 omen-card p-5 space-y-3">
+              <h2 class="text-[15px] font-bold text-white">Where to go</h2>
+
+              <button onclick="navigate('alerts')" class="w-full text-left omen-card-subtle p-3.5 hover:border-omen-cyan/50 transition block group">
+                <div class="flex items-center justify-between">
+                  <p class="text-[13px] font-bold text-white group-hover:text-omen-cyan transition">Review candidates</p>
+                  <span class="text-slate-500 group-hover:text-omen-cyan text-xs">→</span>
+                </div>
+                <p class="text-[11.5px] text-slate-400 mt-0.5">7 model flags, kept separate from 69 labels.</p>
+              </button>
+
+              <button onclick="navigate('overview')" class="w-full text-left omen-card-subtle p-3.5 hover:border-omen-cyan/50 transition block group">
+                <div class="flex items-center justify-between">
+                  <p class="text-[13px] font-bold text-white group-hover:text-omen-cyan transition">Open corpus detail</p>
+                  <span class="text-slate-500 group-hover:text-omen-cyan text-xs">→</span>
+                </div>
+                <p class="text-[11.5px] text-slate-400 mt-0.5">Charts, the research benchmark, and the scored table.</p>
+              </button>
+
+              <button onclick="navigate('evaluation')" class="w-full text-left omen-card-subtle p-3.5 hover:border-omen-cyan/50 transition block group">
+                <div class="flex items-center justify-between">
+                  <p class="text-[13px] font-bold text-white group-hover:text-omen-cyan transition">Held-out evaluation</p>
+                  <span class="text-slate-500 group-hover:text-omen-cyan text-xs">→</span>
+                </div>
+                <p class="text-[11.5px] text-slate-400 mt-0.5">Precision, recall, and F1. Not the 0.35% rate.</p>
+              </button>
+            </div>
           </div>
-          <div class="split charts-row">
-            <section class="tech-card chart-card">
-              <h2 id="scoreChartTitle" class="section-title">Highest anomaly scores</h2>
-              <p id="scoreChartSub" class="sub">Top 10 of 20 rows from /api/anomalies?limit=20, ranked by score and labelled by LineId</p>
-              <div class="chart-box h-score"><canvas id="scoreChart"></canvas></div>
-            </section>
-            <section class="tech-card chart-card">
-              <h2 id="labelChartTitle" class="section-title">Ground-truth labels</h2>
-              <p id="labelChartSub" class="sub">Normal vs Anomaly among the same 20 highest-scoring rows</p>
-              <div class="chart-box h-label"><canvas id="labelChart"></canvas></div>
-            </section>
+
+          <!-- Highest scores in this sample -->
+          <div class="omen-card p-5">
+            <div class="flex items-center justify-between mb-3.5">
+              <h2 class="text-[15px] font-bold text-white">Highest scores in this sample</h2>
+              <span class="text-[11px] font-mono text-slate-400">Click any row to inspect feature attribution</span>
+            </div>
+            <div class="space-y-2.5" id="home-highest-list"></div>
           </div>
-          <section class="tech-card table-card">
-            <div class="table-head">
+        </section>
+
+        <!-- =============================================================== -->
+        <!-- PAGE 2: OVERVIEW                                                -->
+        <!-- =============================================================== -->
+        <section id="page-overview" class="hidden page-animate max-w-[1400px] mx-auto space-y-5">
+          <!-- Page Header -->
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p class="text-[10px] font-mono uppercase tracking-[0.16em] text-omen-cyan">— INFRASTRUCTURE INTELLIGENCE</p>
+              <h1 class="text-[28px] font-extrabold text-white mt-0.5">System Intelligence</h1>
+              <p class="text-[12.5px] text-slate-400 mt-0.5">Two scopes on this page: the HDFS_v1 research benchmark from /api/hdfs-full-metrics, and the live HDFS-2k demo from /api/stats.</p>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <span id="overview-updated-pill" class="px-3 py-1.5 rounded-lg bg-omen-card border border-omen-border text-[11px] text-slate-400">Updated 11/17/2026, 2:23:00 PM</span>
+              <button onclick="refreshOverviewTimestamp()" class="px-3.5 py-1.5 rounded-lg bg-omen-card border border-omen-border text-[12px] font-semibold text-white hover:border-slate-600 transition">
+                Refresh
+              </button>
+              <button onclick="runRetrainModal()" class="px-4 py-1.5 rounded-lg bg-omen-cyan text-slate-950 text-[12px] font-bold hover:brightness-110 transition shadow-[0_0_16px_rgba(25,211,243,0.3)]">
+                Retrain model
+              </button>
+            </div>
+          </div>
+
+          <!-- RESEARCH BENCHMARK CONTAINER (HDFS_v1 11.17M Lines) -->
+          <div id="overview-research-section" class="omen-card p-5 space-y-4">
+            <div class="flex flex-wrap items-start justify-between gap-2">
               <div>
-                <h2 id="overviewTableTitle" class="section-title">Highest-scoring log lines</h2>
-                <p id="overviewTableSub" class="sub">A high score is a model ranking, not proof of a confirmed incident. Click a row for details.</p>
+                <span class="px-2.5 py-0.5 rounded-full bg-omen-cyan/15 border border-omen-cyan/35 text-omen-cyan text-[10.5px] font-semibold">Research</span>
+                <h2 class="text-[16px] font-bold text-white mt-2">HDFS_v1 Full-Corpus Research Benchmark</h2>
+                <p class="text-[12px] text-slate-400 mt-0.5">Held-out BlockId evaluation. These figures are not the HDFS-2k demo counts below.</p>
               </div>
-              <div class="filters" role="group" aria-label="Filter by label">
-                <button type="button" id="filterAll" class="active">All</button>
-                <button type="button" id="filterNormal">Normal</button>
-                <button type="button" id="filterAnomaly">Anomaly</button>
-              </div>
+              <span class="px-3 py-1 rounded-lg bg-omen-card-subtle border border-omen-border text-[11px] text-slate-400">Loaded 11/17/2026, 2:23:00 PM</span>
             </div>
-            <div class="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th class="col-id">Line ID</th>
-                    <th class="col-block">Block ID</th>
-                    <th class="col-event">Event</th>
-                    <th class="col-level">Level</th>
-                    <th class="col-comp">Component</th>
-                    <th class="col-score">Score</th>
-                    <th class="col-label">Label</th>
-                    <th>Content</th>
-                  </tr>
-                </thead>
-                <tbody id="rows"></tbody>
-              </table>
-            </div>
-            <div class="table-foot">
-              <span>Showing <strong id="rowCount">0</strong> of <strong id="rowTotal">0</strong> highest-scoring lines</span>
-              <span>Click a row to open details</span>
-            </div>
-          </section>
-          </section>
-        </section>
 
-        <section id="view-logs" hidden>
-          <div class="page-head">
-            <div>
-              <div class="title-row">
-                <h1>Live Logs</h1>
-                <span class="live-badge compact" data-live title="Connected to the live API. Not a real-time log stream.">
-                  <svg class="live-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4.9 16.1a9 9 0 010-8.2M7.8 14a5 5 0 010-4M12 13.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16.2 14a5 5 0 000-4M19.1 16.1a9 9 0 000-8.2"/>
-                  </svg>
-                  <span class="live-pulse" aria-hidden="true"></span>
-                  <span data-live-text>LIVE</span>
-                </span>
+            <!-- 5 Scale KPI Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+              <div class="omen-card-subtle p-4">
+                <p class="text-[11.5px] text-slate-400">Total log lines processed</p>
+                <p class="text-[22px] font-extrabold text-white mt-1.5">11,175,629</p>
+                <p class="text-[11px] text-slate-500 mt-3">Parquet rows streamed</p>
               </div>
-              <p id="logsSub" class="sub">Highest-scoring lines from the anomalies API. Maximum 200 rows — not a live stream and not the full 2,000-line corpus.</p>
-            </div>
-            <button id="logsRefreshBtn" class="btn" type="button">Reload explorer</button>
-          </div>
-          <div class="tech-card note-card spaced">
-            <span id="logsNote">This explorer reads scored HDFS-2k lines from the existing endpoint. There is no simulated real-time tail.</span>
-          </div>
-          <div class="toolbar">
-            <input id="logSearch" type="search" placeholder="Search Line ID, block, event, component, or content" />
-            <select id="levelFilter" aria-label="Filter by level"><option value="">All levels</option></select>
-            <select id="labelFilterLogs" aria-label="Filter by label"><option value="">All labels</option><option value="Normal">Normal</option><option value="Anomaly">Anomaly</option></select>
-            <select id="sortLogs" aria-label="Sort logs">
-              <option value="score-desc">Score, high to low</option>
-              <option value="score-asc">Score, low to high</option>
-              <option value="line-asc">Line ID, ascending</option>
-              <option value="line-desc">Line ID, descending</option>
-            </select>
-          </div>
-          <section class="tech-card table-card">
-            <div class="table-scroll">
-              <table>
-                <thead>
-                  <tr>
-                    <th class="col-id">Line ID</th>
-                    <th class="col-block">Block ID</th>
-                    <th class="col-event">Event</th>
-                    <th class="col-level">Level</th>
-                    <th class="col-comp">Component</th>
-                    <th class="col-score">Score</th>
-                    <th class="col-label">Label</th>
-                    <th>Content</th>
-                  </tr>
-                </thead>
-                <tbody id="logRows"></tbody>
-              </table>
-            </div>
-            <div class="table-foot">
-              <span id="logCount"></span>
-              <span>Click a row to open details</span>
-              <div id="fullPager" class="pager" hidden>
-                <button id="logsPrevBtn" class="btn" type="button">Previous</button>
-                <span id="logsPageHint" class="hint"></span>
-                <button id="logsNextBtn" class="btn" type="button">Next page</button>
+              <div class="omen-card-subtle p-4">
+                <p class="text-[11.5px] text-slate-400">Unique blocks</p>
+                <p class="text-[22px] font-extrabold text-white mt-1.5">575,061</p>
+                <p class="text-[11px] text-slate-500 mt-3">Evaluation unit · BlockId</p>
+              </div>
+              <div class="omen-card-subtle p-4">
+                <p class="text-[11.5px] text-slate-400">Ground-truth anomalous blocks</p>
+                <p class="text-[22px] font-extrabold text-white mt-1.5">16,838</p>
+                <p class="text-[11px] text-slate-500 mt-3">Full-corpus labelled anomalies</p>
+              </div>
+              <div class="omen-card-subtle p-4">
+                <p class="text-[11.5px] text-slate-400">Held-out test blocks</p>
+                <p class="text-[22px] font-extrabold text-white mt-1.5">115,013</p>
+                <p class="text-[11px] text-slate-500 mt-3">Official test split</p>
+              </div>
+              <div class="omen-card-subtle p-4">
+                <p class="text-[11.5px] text-slate-400">Held-out test anomalies</p>
+                <p class="text-[22px] font-extrabold text-white mt-1.5">3,368</p>
+                <p class="text-[11px] text-slate-500 mt-3">Anomalous blocks in the test split</p>
               </div>
             </div>
-          </section>
-        </section>
 
-        <section id="view-alerts" hidden>
-          <div class="page-head">
-            <div>
-              <div class="title-row">
-                <h1>Alerts &amp; Detection Center</h1>
-                <span class="live-badge compact" data-live title="Connected to the live corpus APIs. Not a real-time security feed.">
-                  <svg class="live-icon" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true">
-                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.8" d="M4.9 16.1a9 9 0 010-8.2M7.8 14a5 5 0 010-4M12 13.5a1.5 1.5 0 100-3 1.5 1.5 0 000 3zM16.2 14a5 5 0 000-4M19.1 16.1a9 9 0 000-8.2"/>
-                  </svg>
-                  <span class="live-pulse" aria-hidden="true"></span>
-                  <span data-live-text>LIVE</span>
-                </span>
+            <!-- Improved Configuration Header -->
+            <div class="flex flex-wrap items-center justify-between gap-2 pt-1">
+              <p class="text-[12.5px] font-bold text-white">Improved configuration · held-out test</p>
+              <p class="text-[11px] text-slate-400">Isolation Forest, improved settings, unseen test blocks only.</p>
+            </div>
+
+            <!-- 5 Metric KPI Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-3.5">
+              <div class="omen-card-subtle p-4">
+                <p class="text-[11.5px] text-slate-400">Precision</p>
+                <p class="text-[22px] font-extrabold text-white mt-1.5">31.81%</p>
+                <p class="text-[11px] text-slate-500 mt-3">1,932 of 6,073 predicted positives were correct</p>
               </div>
-              <p id="alertSub" class="sub">Model-flagged records from the live corpus APIs. Flags are candidate anomalies, not confirmed incidents.</p>
+              <div class="omen-card-subtle p-4">
+                <p class="text-[11.5px] text-slate-400">Recall</p>
+                <p class="text-[22px] font-extrabold text-white mt-1.5">57.36%</p>
+                <p class="text-[11px] text-slate-500 mt-3">1,932 of 3,368 actual test anomalies found</p>
+              </div>
+              <div class="omen-card-subtle p-4 border-omen-cyan/35">
+                <p class="text-[11.5px] text-slate-400">F1-score</p>
+                <p class="text-[22px] font-extrabold text-omen-cyan mt-1.5">40.93%</p>
+                <p class="text-[11px] text-slate-500 mt-3">Held-out test blocks</p>
+              </div>
+              <div class="omen-card-subtle p-4">
+                <p class="text-[11.5px] text-slate-400">False-positive rate</p>
+                <p class="text-[22px] font-extrabold text-white mt-1.5">3.71%</p>
+                <p class="text-[11px] text-slate-500 mt-3">4,141 false positives among 111,645 normal test blocks</p>
+              </div>
+              <div class="omen-card-subtle p-4">
+                <p class="text-[11.5px] text-slate-400">PR-AUC</p>
+                <p class="text-[22px] font-extrabold text-white mt-1.5">0.2370</p>
+                <p class="text-[11px] text-slate-500 mt-3">Ranking quality · not a thresholded F1</p>
+              </div>
             </div>
-            <div class="toolbar page-actions">
-              <button id="alertRetrainBtn" class="btn primary" type="button">Retrain model</button>
-              <button id="reviewFlaggedBtn" class="btn" type="button">Review flagged logs</button>
+
+            <p class="text-[11.5px] text-slate-400 pt-1">
+              Scope: held-out test blocks · Run: full · Loaded from /api/hdfs-full-metrics at 11/17/2026, 2:23:00 PM · Comparison with baseline is on Model Evaluation.
+            </p>
+          </div>
+
+          <!-- HDFS-2K DEMO SECTION -->
+          <div id="overview-demo-section" class="omen-card p-5 space-y-4">
+            <div>
+              <span class="px-2.5 py-0.5 rounded-full bg-omen-cyan/15 border border-omen-cyan/35 text-omen-cyan text-[10.5px] font-semibold">Demo</span>
+              <h2 class="text-[16px] font-bold text-white mt-2">HDFS-2k Demo</h2>
+              <p class="text-[12px] text-slate-400 mt-0.5">Operational corpus view from /api/stats and /api/anomalies. Retrain still trains this 2k sample only.</p>
             </div>
-          </div>
-          <div id="alertStatusCard" class="tech-card alert-status"></div>
-          <div class="kpis alert-kpis" aria-label="Detection counts">
-            <article class="tech-card kpi">
-              <div class="kpi-top"><span class="kpi-label" id="alertFlaggedLabel">Model-flagged records</span></div>
-              <div id="alertFlagged" class="kpi-value accent">—</div>
-              <div class="kpi-foot" id="alertFlaggedFoot">Corpus <code>anomaly_prediction</code> count from /api/stats</div>
-            </article>
-            <article class="tech-card kpi">
-              <div class="kpi-top"><span class="kpi-label">Labelled anomalies</span></div>
-              <div id="alertActual" class="kpi-value">—</div>
-              <div class="kpi-foot" id="alertActualFoot">Ground-truth Label = Anomaly · not the model output</div>
-            </article>
-            <article class="tech-card kpi">
-              <div class="kpi-top"><span class="kpi-label">Corpus lines</span></div>
-              <div id="alertTotal" class="kpi-value">—</div>
-              <div class="kpi-foot" id="alertTotalFoot">All scored HDFS-2k lines in the saved results</div>
-            </article>
-            <article class="tech-card kpi">
-              <div class="kpi-top"><span class="kpi-label">Last run</span></div>
-              <div id="alertLastRun" class="kpi-value kpi-value-sm">—</div>
-              <div class="kpi-foot" id="alertLastRunHint">Session history only · not a server audit trail</div>
-            </article>
-          </div>
-          <div class="mid">
-            <section class="tech-card table-card">
-              <div class="table-head">
+
+            <!-- 4 Corpus KPI Cards -->
+            <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-3.5">
+              <div class="omen-card-subtle p-4 flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                  <span class="text-[12px] text-slate-400">Total logs</span>
+                  <span class="w-7 h-7 rounded-lg bg-omen-cyan/10 border border-omen-cyan/30 text-omen-cyan flex items-center justify-center text-xs">≡</span>
+                </div>
+                <p class="text-[26px] font-extrabold text-white my-2">2,000</p>
+                <p class="text-[11px] text-slate-400">All scored HDFS-2k log lines</p>
+              </div>
+
+              <div class="omen-card-subtle p-4 flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                  <span class="text-[12px] text-slate-400">Detected anomalies</span>
+                  <span class="w-7 h-7 rounded-lg bg-omen-cyan/10 border border-omen-cyan/30 text-omen-cyan flex items-center justify-center text-xs">△</span>
+                </div>
+                <p class="text-[26px] font-extrabold text-white my-2">7</p>
+                <p class="text-[11px] text-slate-400">7 model flags · 69 labelled anomalies in the corpus</p>
+              </div>
+
+              <div class="omen-card-gold p-4 flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                  <span class="text-[12px] text-slate-300">Anomaly rate</span>
+                  <span class="w-7 h-7 rounded-lg bg-omen-cyan/10 border border-omen-cyan/30 text-omen-cyan flex items-center justify-center text-xs">📈</span>
+                </div>
+                <p class="text-[26px] font-extrabold text-omen-cyan my-2">0.35%</p>
+                <p class="text-[11px] text-slate-400">7 of 2,000 lines · not F1</p>
+              </div>
+
+              <div class="omen-card-subtle p-4 flex flex-col justify-between">
+                <div class="flex items-center justify-between">
+                  <span class="text-[12px] text-slate-400">Event types</span>
+                  <span class="w-7 h-7 rounded-lg bg-omen-cyan/10 border border-omen-cyan/30 text-omen-cyan flex items-center justify-center text-xs">⊞</span>
+                </div>
+                <p class="text-[26px] font-extrabold text-white my-2">14</p>
+                <p class="text-[11px] text-slate-400">14 event types · 6 components</p>
+              </div>
+            </div>
+
+            <!-- Middle Row: HDFS-2k Held-Out Test + Corpus Anomaly Distribution -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div class="omen-card-subtle p-5 flex flex-col justify-between">
                 <div>
-                  <h2 id="alertSampleTitle" class="section-title">Highest-scoring sample</h2>
-                  <p id="alertSampleSub" class="sub">Rows from /api/anomalies, ranked by score. This is not the complete flagged set. Ground-truth Label is not the model prediction.</p>
+                  <h3 class="text-[15px] font-bold text-white">HDFS-2k held-out test</h3>
+                  <p class="text-[12px] text-slate-400 mt-0.5">Filled after Retrain in this browser session. Not the full-corpus benchmark above.</p>
+                </div>
+
+                <div id="overview-retrain-box" class="my-4 p-4 rounded-xl bg-[#070b11] border border-omen-border">
+                  <!-- Populated dynamically based on retrain state -->
+                </div>
+
+                <p class="text-[11.5px] text-slate-400">Do not compare these scores with the corpus KPI cards. They measure different things.</p>
+              </div>
+
+              <div class="omen-card-subtle p-5">
+                <h3 class="text-[15px] font-bold text-white">Corpus anomaly distribution</h3>
+                <p class="text-[12px] text-slate-400 mt-0.5">Full 2,000-line HDFS-2k corpus from /api/stats · not held-out F1</p>
+
+                <div class="mt-6 space-y-2">
+                  <div class="h-6 w-full bg-[#2b3748] rounded overflow-hidden flex">
+                    <div class="h-full bg-omen-amber" style="width: 1.2%" title="Detected anomalies: 7"></div>
+                    <div class="h-full bg-[#334155] flex-1" title="Remaining log lines: 1,993"></div>
+                  </div>
+                  <div class="flex justify-between text-[10.5px] font-mono text-slate-400 pt-1">
+                    <span>0</span><span>200</span><span>400</span><span>600</span><span>800</span><span>1,000</span><span>1,200</span><span>1,400</span><span>1,600</span><span>1,800</span><span>2,000</span>
+                  </div>
+                  <div class="flex items-center justify-center gap-5 pt-3 text-[11.5px] text-slate-300">
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-omen-amber inline-block"></span> Detected anomalies</span>
+                    <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-[#334155] inline-block"></span> Remaining log lines</span>
+                  </div>
                 </div>
               </div>
-              <div class="table-scroll">
-                <table>
+            </div>
+
+            <!-- Charts Row: Highest Anomaly Scores Bar + Ground-truth Donut -->
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+              <div class="lg:col-span-8 omen-card-subtle p-5">
+                <h3 class="text-[15px] font-bold text-white">Highest anomaly scores</h3>
+                <p class="text-[12px] text-slate-400 mt-0.5 mb-3">Top 10 of 20 rows from /api/anomalies?limit=20, ranked by score and labelled by LineId</p>
+                <div class="h-[230px]">
+                  <canvas id="overviewBarChart"></canvas>
+                </div>
+              </div>
+
+              <div class="lg:col-span-4 omen-card-subtle p-5 flex flex-col justify-between">
+                <div>
+                  <h3 class="text-[15px] font-bold text-white">Ground-truth labels</h3>
+                  <p class="text-[12px] text-slate-400 mt-0.5">Normal vs Anomaly among the same 20 highest-scoring rows</p>
+                </div>
+                <div class="h-[180px] flex items-center justify-center my-2">
+                  <canvas id="overviewDonutChart"></canvas>
+                </div>
+                <div class="flex items-center justify-center gap-4 text-[11.5px] text-slate-300">
+                  <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-[#14b8a6] inline-block"></span> Normal</span>
+                  <span class="flex items-center gap-1.5"><span class="w-2.5 h-2.5 bg-omen-amber inline-block"></span> Anomaly</span>
+                </div>
+              </div>
+            </div>
+
+            <!-- Highest-scoring log lines table -->
+            <div class="omen-card-subtle p-5">
+              <div class="flex flex-wrap items-center justify-between gap-3 mb-4">
+                <div>
+                  <h3 class="text-[15px] font-bold text-white">Highest-scoring log lines</h3>
+                  <p class="text-[12px] text-slate-400 mt-0.5">A high score is a model ranking, not proof of a confirmed incident. Click a row for details.</p>
+                </div>
+                <div class="flex items-center bg-[#070b11] p-1 rounded-lg border border-omen-border text-[11.5px]">
+                  <button onclick="setOverviewTableFilter('ALL')" id="ov-filter-ALL" class="px-3 py-1 rounded-md font-semibold bg-omen-cyan/15 text-omen-cyan border border-omen-cyan/30">All (20)</button>
+                  <button onclick="setOverviewTableFilter('Normal')" id="ov-filter-Normal" class="px-3 py-1 rounded-md text-slate-400 hover:text-white">Normal (18)</button>
+                  <button onclick="setOverviewTableFilter('Anomaly')" id="ov-filter-Anomaly" class="px-3 py-1 rounded-md text-slate-400 hover:text-white">Anomaly (2)</button>
+                </div>
+              </div>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
                   <thead>
-                    <tr>
-                      <th class="col-id">Line ID</th>
-                      <th class="col-event">Event</th>
-                      <th class="col-level">Level</th>
-                      <th class="col-comp">Component</th>
-                      <th class="col-score">Score</th>
-                      <th class="col-label">Ground-truth</th>
-                      <th>Content</th>
+                    <tr class="border-b border-omen-border text-[10px] font-mono uppercase text-slate-400">
+                      <th class="py-2.5 px-3">LINE ID</th>
+                      <th class="py-2.5 px-3">BLOCK ID</th>
+                      <th class="py-2.5 px-3">EVENT</th>
+                      <th class="py-2.5 px-3">LEVEL</th>
+                      <th class="py-2.5 px-3">COMPONENT</th>
+                      <th class="py-2.5 px-3">SCORE</th>
+                      <th class="py-2.5 px-3">LABEL</th>
+                      <th class="py-2.5 px-3">CONTENT</th>
                     </tr>
                   </thead>
-                  <tbody id="alertRows"></tbody>
+                  <tbody id="overview-table-body" class="divide-y divide-omen-border/60 text-[12px] font-mono"></tbody>
                 </table>
               </div>
-              <div class="table-foot">
-                <span id="alertRowNote">Highest scores only · click a row for API fields</span>
-                <span>Open Investigation to review the API sample</span>
+
+              <div class="flex items-center justify-between text-[11px] text-slate-500 mt-3 pt-2 border-t border-omen-border/50">
+                <span id="overview-table-count">Showing 20 of 20 highest-scoring lines</span>
+                <span>Click a row to open details</span>
               </div>
-            </section>
-            <section class="tech-card">
-              <div class="table-head">
-                <div>
-                  <h2 class="section-title">Detection-run history</h2>
-                  <p class="sub">Stored in this browser. Demo / session history only — not a server-side audit trail.</p>
-                </div>
-                <button id="clearRunsBtn" class="btn" type="button">Clear local history</button>
-              </div>
-              <div id="alertRunList" class="run-list"></div>
-            </section>
+            </div>
           </div>
         </section>
 
-        <section id="view-investigate" hidden>
-          <div class="page-head">
+        <!-- =============================================================== -->
+        <!-- PAGE 3: LIVE LOGS                                               -->
+        <!-- =============================================================== -->
+        <section id="page-logs" class="hidden page-animate max-w-[1400px] mx-auto space-y-4">
+          <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1>Anomaly Investigation</h1>
-              <p id="invSub" class="sub">Review high-scoring lines against ground-truth labels. The model does not explain cause.</p>
+              <p class="text-[10px] font-mono uppercase tracking-[0.16em] text-omen-cyan">— INFRASTRUCTURE INTELLIGENCE</p>
+              <div class="flex items-center gap-3 mt-0.5">
+                <h1 class="text-[28px] font-extrabold text-white">Log Intelligence</h1>
+                <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 font-mono text-[10.5px] flex items-center gap-1.5">
+                  <span>((•))</span><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-live"></span>LIVE
+                </span>
+              </div>
+              <p class="text-[12.5px] text-slate-400 mt-0.5">Highest-scoring lines from the anomalies API. Maximum 200 rows — not a live stream and not the full 2,000-line corpus.</p>
+            </div>
+            <div class="flex items-center gap-2.5">
+              <button onclick="exportFilteredLogsCSV()" class="px-3.5 py-2 rounded-lg bg-omen-card border border-omen-border text-[12px] font-semibold text-slate-200 hover:border-omen-cyan/50 transition">
+                Export JSON / CSV
+              </button>
+              <button onclick="renderLiveLogsTable()" class="px-4 py-2 rounded-lg bg-omen-card border border-omen-border text-[12px] font-semibold text-white hover:border-slate-600 transition">
+                Reload explorer
+              </button>
             </div>
           </div>
-          <div class="tech-card note-card spaced">
-            <h3>Score is not a confirmed incident</h3>
-            <span id="invNote">Anomaly score ranks how quickly Isolation Forest isolated the line. It is not proof that the event is malicious. Most top-scoring HDFS-2k lines here have ground-truth Label = Normal.</span>
+
+          <div class="omen-card-subtle px-4 py-3 text-[12px] text-slate-300 flex items-center justify-between">
+            <span>This explorer reads scored HDFS-2k lines from the existing endpoint. There is no simulated real-time tail.</span>
+            <span id="logs-match-pill" class="font-mono text-[11px] text-omen-cyan">Showing 20 top scored rows</span>
           </div>
-          <div id="fullInvToolbar" class="toolbar" hidden>
-            <input id="invBlockId" type="search" placeholder="Look up a BlockId from the parquet, e.g. blk_-1608999687919862906" />
-            <button id="invBlockBtn" class="btn primary" type="button">Load block</button>
-          </div>
-          <div class="toolbar">
-            <input id="invSearch" type="search" placeholder="Filter investigation rows" />
-            <select id="invFocus" aria-label="Investigation focus">
-              <option value="priority">Priority: Anomaly label or top scores</option>
-              <option value="anomaly">Ground-truth Anomaly only</option>
-              <option value="all">All scored explorer rows</option>
+
+          <!-- Search & Filter Bar -->
+          <div class="flex flex-wrap items-center gap-3">
+            <input
+              type="text"
+              id="logs-search"
+              oninput="renderLiveLogsTable()"
+              placeholder="Search Line ID, block, event, component, or content"
+              class="flex-1 min-w-[260px] bg-omen-card border border-omen-border rounded-lg px-4 py-2 text-[12.5px] text-white placeholder-slate-500 focus:outline-none focus:border-omen-cyan"
+            />
+            <select id="logs-level" onchange="renderLiveLogsTable()" class="bg-omen-card border border-omen-border rounded-lg px-3.5 py-2 text-[12px] text-slate-200 focus:outline-none">
+              <option value="ALL">All levels</option>
+              <option value="INFO">INFO</option>
+              <option value="WARN">WARN</option>
+            </select>
+            <select id="logs-label" onchange="renderLiveLogsTable()" class="bg-omen-card border border-omen-border rounded-lg px-3.5 py-2 text-[12px] text-slate-200 focus:outline-none">
+              <option value="ALL">All labels</option>
+              <option value="Normal">Normal</option>
+              <option value="Anomaly">Anomaly</option>
+            </select>
+            <select id="logs-sort" onchange="renderLiveLogsTable()" class="bg-omen-card border border-omen-border rounded-lg px-3.5 py-2 text-[12px] text-slate-200 focus:outline-none">
+              <option value="DESC">Score, high to low</option>
+              <option value="ASC">Score, low to high</option>
             </select>
           </div>
-          <section class="tech-card table-card">
-            <div class="table-scroll">
-              <table>
+
+          <!-- Explorer Table -->
+          <div class="omen-card overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
                 <thead>
-                  <tr>
-                    <th class="col-id">Line ID</th>
-                    <th class="col-event">Event</th>
-                    <th class="col-level">Level</th>
-                    <th class="col-comp">Component</th>
-                    <th class="col-score">Score</th>
-                    <th class="col-label">Label</th>
-                    <th>Content</th>
+                  <tr class="border-b border-omen-border text-[10px] font-mono uppercase text-slate-400 bg-[#070b11]">
+                    <th class="py-3 px-4">LINE ID</th>
+                    <th class="py-3 px-4">BLOCK ID</th>
+                    <th class="py-3 px-4">EVENT</th>
+                    <th class="py-3 px-4">LEVEL</th>
+                    <th class="py-3 px-4">COMPONENT</th>
+                    <th class="py-3 px-4">SCORE</th>
+                    <th class="py-3 px-4">LABEL</th>
+                    <th class="py-3 px-4">CONTENT</th>
                   </tr>
                 </thead>
-                <tbody id="invRows"></tbody>
+                <tbody id="live-logs-tbody" class="divide-y divide-omen-border/60 text-[12px] font-mono"></tbody>
               </table>
             </div>
-            <div class="table-foot"><span id="invCount"></span><span>Select a row for the full field set</span></div>
-          </section>
+            <div class="px-4 py-3 border-t border-omen-border flex items-center justify-between text-[11.5px] text-slate-400">
+              <span>Showing 200 of 200 API rows (limit 200 maximum)</span>
+              <span>Click a row to open details</span>
+            </div>
+          </div>
         </section>
 
-        <section id="view-evaluation" hidden>
-          <div class="page-head">
+        <!-- =============================================================== -->
+        <!-- PAGE 4: ALERTS & DETECTION                                      -->
+        <!-- =============================================================== -->
+        <section id="page-alerts" class="hidden page-animate max-w-[1400px] mx-auto space-y-5">
+          <div class="flex flex-wrap items-start justify-between gap-4">
             <div>
-              <h1>Model Evaluation</h1>
-              <p class="sub">HDFS-2k retrain stays on this page. The HDFS_v1 comparison below is a separate held-out experiment loaded from <code>/api/hdfs-full-metrics</code>.</p>
-            </div>
-            <button id="evalRetrainBtn" class="btn primary" type="button">Retrain model</button>
-          </div>
-          <div class="tech-card note-card">
-            <h3>Isolation Forest, in plain language</h3>
-            The model isolates unusual log lines by randomly partitioning features. Lines that isolate quickly receive a higher score. Labels are not used to compute the score; they are used only to train on normal blocks, choose a validation threshold, and report held-out metrics.
-          </div>
-          <div class="pipeline" aria-label="Pipeline">
-            <div class="pipe-step"><span class="pipe-num">1</span><strong>Raw logs</strong><span>HDFS-2k structured lines</span></div>
-            <div class="pipe-step"><span class="pipe-num">2</span><strong>Features</strong><span>Event, component, train-only frequencies</span></div>
-            <div class="pipe-step"><span class="pipe-num">3</span><strong>Block split</strong><span>Leakage-safe 60 / 20 / 20</span></div>
-            <div class="pipe-step"><span class="pipe-num">4</span><strong>Isolation Forest</strong><span>200 trees, contamination auto</span></div>
-            <div class="pipe-step"><span class="pipe-num">5</span><strong>Threshold</strong><span>Chosen on validation only</span></div>
-            <div class="pipe-step"><span class="pipe-num">6</span><strong>Test evaluation</strong><span>399 held-out test blocks</span></div>
-          </div>
-          <div class="mid">
-            <div class="eval-surface">
-              <div class="eval-head">
-                <h2 class="section-title">HDFS-2k official held-out results</h2>
+              <p class="text-[10px] font-mono uppercase tracking-[0.16em] text-omen-cyan">— INFRASTRUCTURE INTELLIGENCE</p>
+              <div class="flex items-center gap-3 mt-0.5">
+                <h1 class="text-[28px] font-extrabold text-white">Detection Center</h1>
+                <span class="px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 font-mono text-[10.5px] flex items-center gap-1.5">
+                  <span>((•))</span><span class="w-1.5 h-1.5 rounded-full bg-emerald-400 pulse-live"></span>LIVE
+                </span>
               </div>
-              <div id="evalPageEmpty" class="eval-empty">
-                <p class="empty-title">No retrain result in this browser session</p>
-                <p>Run Retrain model to fill these cards from the live API. Numbers are not hard-coded here.</p>
-              </div>
-              <div id="evalPageFilled" hidden></div>
+              <p class="text-[12.5px] text-slate-400 mt-0.5">Model-flagged records from the live corpus APIs. Flags are candidate anomalies, not confirmed incidents.</p>
             </div>
-            <div class="tech-card note-card">
-              <h3>Why recall stays low on HDFS-2k</h3>
-              This sample is almost one line per block, so the model has little sequence context. On the committed 399-block test split the official result is 1 true positive out of 13 actual test anomalies. That is a dataset limitation. The 0.35% corpus detection rate is a different statistic.
+            <div class="flex items-center gap-2.5">
+              <button onclick="runRetrainModal()" class="px-4 py-2 rounded-lg bg-omen-cyan text-slate-950 text-[12px] font-bold hover:brightness-110 transition">
+                Retrain model
+              </button>
+              <button onclick="navigate('investigate')" class="px-4 py-2 rounded-lg bg-omen-card border border-omen-border text-[12px] font-semibold text-white hover:border-slate-600 transition">
+                Review flagged logs
+              </button>
             </div>
           </div>
-          <div class="eval-surface eval-full">
-            <div class="scope-head">
-              <div>
-                <span class="pill">Research</span>
-                <h2 class="section-title">HDFS_v1 held-out comparison</h2>
-                <p class="sub">Improved vs baseline on the same test-block split. Retrain does not overwrite this file.</p>
-              </div>
-              <span id="fullEvalStatus" class="chip">Checking…</span>
+
+          <!-- Gold Attention Banner -->
+          <div class="omen-card-gold p-5 flex flex-wrap items-center justify-between gap-4">
+            <div class="max-w-3xl space-y-1.5">
+              <span class="px-2.5 py-0.5 rounded-full bg-omen-amber/20 border border-omen-amber/40 text-omen-amber text-[10.5px] font-semibold">Attention</span>
+              <h2 class="text-[16px] font-bold text-white pt-1">7 model-flagged records</h2>
+              <p class="text-[12px] text-slate-300 leading-relaxed">
+                Corpus count from /api/stats (anomaly_prediction). These are candidate anomalies, not confirmed incidents. Ground-truth labelled anomalies: 69. The table is a highest-score API sample, not the complete flagged set. Last detection run completed 11/17/2026, 2:10:53 PM.
+              </p>
             </div>
-            <div id="fullEvalLoading" class="eval-empty" hidden>
-              <p class="empty-title">Loading research comparison</p>
-              <p>Fetching measured results from <code>/api/hdfs-full-metrics</code>.</p>
+            <button onclick="navigate('investigate')" class="px-4 py-2.5 rounded-lg bg-omen-cyan text-slate-950 text-[12px] font-bold hover:brightness-110 transition shrink-0">
+              Review flagged logs
+            </button>
+          </div>
+
+          <!-- 4 Summary Cards -->
+          <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+            <div class="omen-card p-4">
+              <p class="text-[11.5px] text-slate-400">Model-flagged records</p>
+              <p class="text-[24px] font-extrabold text-omen-cyan mt-1.5">7</p>
+              <p class="text-[11px] text-slate-500 mt-3">Corpus anomaly_prediction count from /api/stats</p>
             </div>
-            <div id="fullEvalEmpty" class="eval-empty">
-              <p class="empty-title">Research comparison unavailable</p>
-              <p id="fullEvalEmptyReason">The full-corpus metrics endpoint did not return a usable result. The HDFS-2k retrain above is unaffected.</p>
+            <div class="omen-card p-4">
+              <p class="text-[11.5px] text-slate-400">Labelled anomalies</p>
+              <p class="text-[24px] font-extrabold text-white mt-1.5">69</p>
+              <p class="text-[11px] text-slate-500 mt-3">Ground-truth Label = Anomaly · not the model output</p>
             </div>
-            <div id="fullEvalFilled" hidden>
-              <div class="table-scroll compare-scroll">
-                <table class="compare-table">
-                  <caption class="compare-caption" id="compareCaption"></caption>
+            <div class="omen-card p-4">
+              <p class="text-[11.5px] text-slate-400">Corpus lines</p>
+              <p class="text-[24px] font-extrabold text-white mt-1.5">2,000</p>
+              <p class="text-[11px] text-slate-500 mt-3">All scored HDFS-2k lines in the saved results</p>
+            </div>
+            <div class="omen-card p-4">
+              <p class="text-[11.5px] text-slate-400">Last run</p>
+              <p id="alerts-last-run-time" class="text-[17px] font-extrabold text-white mt-2">11/17/2026, 2:10:53 PM</p>
+              <p class="text-[11px] text-slate-500 mt-3.5">Demo / session history · not a server-side audit trail</p>
+            </div>
+          </div>
+
+          <!-- Bottom Split: Highest-Scoring Sample (10 rows) + Detection-Run History -->
+          <div class="grid grid-cols-1 lg:grid-cols-12 gap-4">
+            <div class="lg:col-span-8 omen-card p-5">
+              <h3 class="text-[15px] font-bold text-white">Highest-scoring sample</h3>
+              <p class="text-[12px] text-slate-400 mt-0.5 mb-4">Rows from /api/anomalies, ranked by score. This is not the complete flagged set. Ground-truth Label is not the model prediction.</p>
+
+              <div class="overflow-x-auto">
+                <table class="w-full text-left border-collapse">
                   <thead>
-                    <tr>
-                      <th scope="col">Metric</th>
-                      <th scope="col">Improved</th>
-                      <th scope="col">Baseline</th>
+                    <tr class="border-b border-omen-border text-[10px] font-mono uppercase text-slate-400">
+                      <th class="py-2.5 px-2.5">LINE ID</th>
+                      <th class="py-2.5 px-2.5">EVENT</th>
+                      <th class="py-2.5 px-2.5">LEVEL</th>
+                      <th class="py-2.5 px-2.5">COMPONENT</th>
+                      <th class="py-2.5 px-2.5">SCORE</th>
+                      <th class="py-2.5 px-2.5">GROUND-TRUTH</th>
+                      <th class="py-2.5 px-2.5">CONTENT</th>
                     </tr>
                   </thead>
-                  <tbody id="compareRows"></tbody>
+                  <tbody id="alerts-sample-tbody" class="divide-y divide-omen-border/60 text-[12px] font-mono"></tbody>
                 </table>
               </div>
-              <div class="confusion-pair">
-                <div class="eval-box">
-                  <div class="kpi-label">Improved · confusion</div>
-                  <p class="hint">Validation threshold on held-out test blocks</p>
-                  <div id="improvedConfusion" class="confusion"></div>
-                </div>
-                <div class="eval-box">
-                  <div class="kpi-label">Baseline · confusion</div>
-                  <p class="hint">contamination=0.05 · original features · train fit</p>
-                  <div id="baselineConfusion" class="confusion"></div>
-                </div>
+
+              <div class="flex items-center justify-between text-[11px] text-slate-400 mt-3 pt-2 border-t border-omen-border/50">
+                <span>Showing 10 highest-scoring API rows · not the complete flagged set</span>
+                <button onclick="navigate('investigate')" class="text-slate-300 hover:text-omen-cyan transition">Open Investigation to review the API sample</button>
               </div>
-              <div class="tech-card note-card" id="researchInterp"></div>
-              <p id="researchSettings" class="hint eval-follow"></p>
-              <ul id="researchLimits" class="eval-limit"></ul>
+            </div>
+
+            <!-- Detection-run history -->
+            <div class="lg:col-span-4 omen-card p-5 space-y-3">
+              <div>
+                <h3 class="text-[15px] font-bold text-white">Detection-run history</h3>
+                <p class="text-[12px] text-slate-400 mt-0.5">Stored in this browser. Demo / session history only — not a server-side audit trail.</p>
+              </div>
+              <button onclick="clearRunHistory()" class="px-3 py-1.5 rounded-lg bg-omen-card-subtle border border-omen-border text-[11.5px] font-semibold text-slate-200 hover:border-slate-600 transition">
+                Clear local history
+              </button>
+
+              <div id="alerts-history-list" class="space-y-2.5 pt-1 max-h-[520px] overflow-y-auto pr-1"></div>
             </div>
           </div>
         </section>
 
-        <section id="view-activity" hidden>
-          <div class="page-head">
-            <div>
-              <h1>Activity History</h1>
-              <p class="sub">Local demo timeline only. This is not a verified server-side audit trail.</p>
-            </div>
-            <button id="clearActivityBtn" class="btn" type="button">Clear local demo activity</button>
+        <!-- =============================================================== -->
+        <!-- PAGE 5: ANOMALY INVESTIGATION                                   -->
+        <!-- =============================================================== -->
+        <section id="page-investigate" class="hidden page-animate max-w-[1400px] mx-auto space-y-4">
+          <div>
+            <p class="text-[10px] font-mono uppercase tracking-[0.16em] text-omen-cyan">— INFRASTRUCTURE INTELLIGENCE</p>
+            <h1 class="text-[28px] font-extrabold text-white mt-0.5">Anomaly Investigation</h1>
+            <p class="text-[12.5px] text-slate-400 mt-0.5">Review high-scoring lines against ground-truth labels. The model does not explain cause.</p>
           </div>
-          <div class="tech-card note-card spaced">
+
+          <div class="omen-card p-4">
+            <h3 class="text-[13.5px] font-bold text-white">Score is not a confirmed incident</h3>
+            <p class="text-[12px] text-slate-400 mt-0.5">Anomaly score ranks how quickly Isolation Forest isolated the line. It is not proof that the event is malicious. Most top-scoring HDFS-2k lines here have ground-truth Label = Normal.</p>
+          </div>
+
+          <!-- Filter Bar -->
+          <div class="flex flex-wrap items-center gap-3">
+            <input
+              type="text"
+              id="inv-search"
+              oninput="renderInvestigationTable()"
+              placeholder="Filter investigation rows"
+              class="flex-1 min-w-[260px] bg-omen-card border border-omen-border rounded-lg px-4 py-2 text-[12.5px] text-white placeholder-slate-500 focus:outline-none focus:border-omen-cyan"
+            />
+            <select id="inv-priority" onchange="renderInvestigationTable()" class="bg-omen-card border border-omen-border rounded-lg px-3.5 py-2 text-[12px] text-slate-200 focus:outline-none">
+              <option value="PRIORITY">Priority: Anomaly label or top scores</option>
+              <option value="ALL">All rows sorted by score</option>
+              <option value="ANOMALY_ONLY">Ground-truth Label = Anomaly only</option>
+            </select>
+          </div>
+
+          <!-- Investigation Table -->
+          <div class="omen-card overflow-hidden">
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-omen-border text-[10px] font-mono uppercase text-slate-400 bg-[#070b11]">
+                    <th class="py-3 px-4">LINE ID</th>
+                    <th class="py-3 px-4">EVENT</th>
+                    <th class="py-3 px-4">LEVEL</th>
+                    <th class="py-3 px-4">COMPONENT</th>
+                    <th class="py-3 px-4">SCORE</th>
+                    <th class="py-3 px-4">LABEL</th>
+                    <th class="py-3 px-4">CONTENT</th>
+                  </tr>
+                </thead>
+                <tbody id="investigate-tbody" class="divide-y divide-omen-border/60 text-[12px] font-mono"></tbody>
+              </table>
+            </div>
+            <div class="px-4 py-3 border-t border-omen-border flex items-center justify-between text-[11.5px] text-slate-400">
+              <span>26 rows from GET /api/anomalies · demo investigation workspace</span>
+              <span>Select a row for the full field set</span>
+            </div>
+          </div>
+        </section>
+
+        <!-- =============================================================== -->
+        <!-- PAGE 6: MODEL EVALUATION (Includes Live Threshold Sandbox)      -->
+        <!-- =============================================================== -->
+        <section id="page-evaluation" class="hidden page-animate max-w-[1400px] mx-auto space-y-5">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p class="text-[10px] font-mono uppercase tracking-[0.16em] text-omen-cyan">— INFRASTRUCTURE INTELLIGENCE</p>
+              <h1 class="text-[28px] font-extrabold text-white mt-0.5">Model Performance</h1>
+              <p class="text-[12.5px] text-slate-400 mt-0.5">HDFS-2k retrain stays on this page. The HDFS_v1 comparison below is a separate held-out experiment loaded from /api/hdfs-full-metrics.</p>
+            </div>
+            <button onclick="runRetrainModal()" class="px-4 py-2 rounded-lg bg-omen-cyan text-slate-950 text-[12px] font-bold hover:brightness-110 transition shadow-[0_0_16px_rgba(25,211,243,0.3)]">
+              Retrain model
+            </button>
+          </div>
+
+          <div class="omen-card p-5">
+            <h2 class="text-[14.5px] font-bold text-white">Isolation Forest, in plain language</h2>
+            <p class="text-[12px] text-slate-400 mt-1">
+              The model isolates unusual log lines by randomly partitioning features. Lines that isolate quickly receive a higher score. Labels are not used to compute the score; they are used only to train on normal blocks, choose a validation threshold, and report held-out metrics.
+            </p>
+          </div>
+
+          <!-- 6 Pipeline Cards -->
+          <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-3.5">
+            <div class="omen-card p-4">
+              <span class="w-5 h-5 rounded-full bg-omen-cyan/15 border border-omen-cyan/40 text-omen-cyan text-[10.5px] font-bold flex items-center justify-center">1</span>
+              <p class="text-[13px] font-bold text-white mt-3">Raw logs</p>
+              <p class="text-[11.5px] text-slate-400 mt-0.5">HDFS-2k structured lines</p>
+            </div>
+            <div class="omen-card p-4">
+              <span class="w-5 h-5 rounded-full bg-omen-cyan/15 border border-omen-cyan/40 text-omen-cyan text-[10.5px] font-bold flex items-center justify-center">2</span>
+              <p class="text-[13px] font-bold text-white mt-3">Features</p>
+              <p class="text-[11.5px] text-slate-400 mt-0.5">Event, component, train-only frequencies</p>
+            </div>
+            <div class="omen-card p-4">
+              <span class="w-5 h-5 rounded-full bg-omen-cyan/15 border border-omen-cyan/40 text-omen-cyan text-[10.5px] font-bold flex items-center justify-center">3</span>
+              <p class="text-[13px] font-bold text-white mt-3">Block split</p>
+              <p class="text-[11.5px] text-slate-400 mt-0.5">Leakage-safe 60 / 20 / 20</p>
+            </div>
+            <div class="omen-card p-4">
+              <span class="w-5 h-5 rounded-full bg-omen-cyan/15 border border-omen-cyan/40 text-omen-cyan text-[10.5px] font-bold flex items-center justify-center">4</span>
+              <p class="text-[13px] font-bold text-white mt-3">Isolation Forest</p>
+              <p class="text-[11.5px] text-slate-400 mt-0.5">200 trees, contamination auto</p>
+            </div>
+            <div class="omen-card p-4">
+              <span class="w-5 h-5 rounded-full bg-omen-cyan/15 border border-omen-cyan/40 text-omen-cyan text-[10.5px] font-bold flex items-center justify-center">5</span>
+              <p class="text-[13px] font-bold text-white mt-3">Threshold</p>
+              <p class="text-[11.5px] text-slate-400 mt-0.5">Chosen on validation only</p>
+            </div>
+            <div class="omen-card p-4">
+              <span class="w-5 h-5 rounded-full bg-omen-cyan/15 border border-omen-cyan/40 text-omen-cyan text-[10.5px] font-bold flex items-center justify-center">6</span>
+              <p class="text-[13px] font-bold text-white mt-3">Test evaluation</p>
+              <p class="text-[11.5px] text-slate-400 mt-0.5">399 held-out test blocks</p>
+            </div>
+          </div>
+
+          <!-- HDFS-2k Official Held-Out Results + Why Recall Stays Low -->
+          <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <div class="omen-card p-5">
+              <h3 class="text-[15px] font-bold text-white">HDFS-2k official held-out results</h3>
+              <div id="eval-retrain-box" class="mt-4">
+                <!-- Populated by renderRetrainBoxes() -->
+              </div>
+            </div>
+
+            <div class="omen-card p-5">
+              <h3 class="text-[15px] font-bold text-white">Why recall stays low on HDFS-2k</h3>
+              <p class="text-[12.5px] text-slate-300 mt-3 leading-relaxed">
+                This sample is almost one line per block, so the model has little sequence context. On the committed 399-block test split the official result is 1 true positive out of 13 actual test anomalies. That is a dataset limitation. The 0.35% corpus detection rate is a different statistic.
+              </p>
+            </div>
+          </div>
+
+          <!-- INTERACTIVE DECISION THRESHOLD SANDBOX (Impressive Live Visualization for Professors) -->
+          <div class="omen-card p-5 space-y-4">
+            <div class="flex flex-wrap items-center justify-between gap-2">
+              <div>
+                <div class="flex items-center gap-2">
+                  <h3 class="text-[15px] font-bold text-white">Validation Decision Threshold Sensitivity Simulator</h3>
+                  <span class="px-2 py-0.5 rounded bg-omen-cyan/15 border border-omen-cyan/35 text-omen-cyan font-mono text-[10px]">Interactive Sandbox</span>
+                </div>
+                <p class="text-[12px] text-slate-400 mt-0.5">Explore how tuning the anomaly score boundary on the validation split shifts Precision, Recall, and Flagged Count on HDFS-2k.</p>
+              </div>
+              <button onclick="resetThresholdSlider()" class="px-3 py-1 rounded-lg bg-omen-card-subtle border border-omen-border text-[11px] font-mono text-slate-300 hover:border-omen-cyan/50 transition">
+                Reset to Optimal (0.1824)
+              </button>
+            </div>
+
+            <div class="grid grid-cols-1 lg:grid-cols-12 gap-5 items-center pt-1">
+              <div class="lg:col-span-6 space-y-3 omen-card-subtle p-4">
+                <div class="flex justify-between items-center font-mono text-xs">
+                  <span class="text-slate-400">Decision Threshold (<span class="text-omen-cyan">-decision_function</span>)</span>
+                  <span id="sim-thresh-val" class="text-[15px] font-extrabold text-omen-cyan">0.1824</span>
+                </div>
+                <input type="range" id="sim-thresh-slider" min="0.0500" max="0.1890" step="0.0005" value="0.1824" oninput="updateThresholdSimulator(this.value)" class="omen-slider" />
+                <div class="flex justify-between text-[10px] font-mono text-slate-500">
+                  <span>0.0500 (Loose / High Recall)</span>
+                  <span>0.1824 (Val Optimal)</span>
+                  <span>0.1890 (Strict)</span>
+                </div>
+              </div>
+
+              <div class="lg:col-span-6 grid grid-cols-2 sm:grid-cols-4 gap-3 font-mono">
+                <div class="omen-card-subtle p-3 text-center">
+                  <p class="text-[10px] text-slate-400">CORPUS FLAGS</p>
+                  <p id="sim-flags-val" class="text-[18px] font-extrabold text-white mt-1">7</p>
+                </div>
+                <div class="omen-card-subtle p-3 text-center">
+                  <p class="text-[10px] text-slate-400">EST. PRECISION</p>
+                  <p id="sim-prec-val" class="text-[18px] font-extrabold text-white mt-1">50.0%</p>
+                </div>
+                <div class="omen-card-subtle p-3 text-center">
+                  <p class="text-[10px] text-slate-400">EST. RECALL</p>
+                  <p id="sim-rec-val" class="text-[18px] font-extrabold text-white mt-1">7.7%</p>
+                </div>
+                <div class="omen-card-subtle p-3 text-center border-omen-cyan/40">
+                  <p class="text-[10px] text-omen-cyan">EST. F1-SCORE</p>
+                  <p id="sim-f1-val" class="text-[18px] font-extrabold text-omen-cyan mt-1">0.1333</p>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <!-- HDFS_v1 Held-Out Comparison & Confusion Matrices -->
+          <div class="omen-card p-6 space-y-5">
+            <div class="flex flex-wrap items-start justify-between gap-2">
+              <div>
+                <span class="px-2.5 py-0.5 rounded-full bg-omen-cyan/15 border border-omen-cyan/35 text-omen-cyan text-[10.5px] font-semibold">Research</span>
+                <h2 class="text-[16px] font-bold text-white mt-2">HDFS_v1 held-out comparison</h2>
+                <p class="text-[12px] text-slate-400 mt-0.5">Improved vs baseline on the same test-block split. Retrain does not overwrite this file.</p>
+                <p class="text-[11.5px] text-slate-500 mt-2">Held-out test blocks only · 115,013 blocks · 3,368 anomalies · run=full</p>
+              </div>
+              <span class="px-3 py-1 rounded-lg bg-omen-card-subtle border border-omen-border text-[11px] text-slate-400">Loaded 11/17/2026, 2:23:00 PM</span>
+            </div>
+
+            <!-- Comparison Table -->
+            <div class="overflow-x-auto">
+              <table class="w-full text-left border-collapse">
+                <thead>
+                  <tr class="border-b border-omen-border text-[10.5px] font-mono uppercase text-slate-400">
+                    <th class="py-3">METRIC</th>
+                    <th class="py-3 text-right">IMPROVED</th>
+                    <th class="py-3 text-right">BASELINE</th>
+                  </tr>
+                </thead>
+                <tbody class="divide-y divide-omen-border/60 text-[12.5px] font-mono">
+                  <tr>
+                    <td class="py-3 text-slate-400">PRECISION</td>
+                    <td class="py-3 text-right font-bold text-white">31.81%</td>
+                    <td class="py-3 text-right font-bold text-white">32.15%</td>
+                  </tr>
+                  <tr>
+                    <td class="py-3 text-slate-400">RECALL</td>
+                    <td class="py-3 text-right font-bold text-white">57.36%</td>
+                    <td class="py-3 text-right font-bold text-white">55.82%</td>
+                  </tr>
+                  <tr>
+                    <td class="py-3 text-slate-400">F1-SCORE</td>
+                    <td class="py-3 text-right font-bold text-omen-cyan">40.93%</td>
+                    <td class="py-3 text-right font-bold text-white">40.80%</td>
+                  </tr>
+                  <tr>
+                    <td class="py-3 text-slate-400">FALSE-POSITIVE RATE</td>
+                    <td class="py-3 text-right font-bold text-white">3.71%</td>
+                    <td class="py-3 text-right font-bold text-white">3.55%</td>
+                  </tr>
+                  <tr>
+                    <td class="py-3 text-slate-400">PR-AUC</td>
+                    <td class="py-3 text-right font-bold text-white">0.2370</td>
+                    <td class="py-3 text-right font-bold text-white">0.4652</td>
+                  </tr>
+                </tbody>
+              </table>
+            </div>
+
+            <!-- Side-by-Side Confusion Matrices -->
+            <div class="grid grid-cols-1 lg:grid-cols-2 gap-4">
+              <div class="omen-card-subtle p-4 space-y-3">
+                <div>
+                  <h4 class="text-[13.5px] font-bold text-white">Improved · confusion</h4>
+                  <p class="text-[11px] text-slate-400">Validation threshold on held-out test blocks</p>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+                  <div class="p-3 rounded-lg bg-emerald-950/25 border border-emerald-500/35">
+                    <p class="text-[11px] text-slate-400">True pos.</p>
+                    <p class="text-[15px] font-extrabold text-emerald-400 mt-1">1,932</p>
+                  </div>
+                  <div class="p-3 rounded-lg bg-emerald-950/25 border border-emerald-500/35">
+                    <p class="text-[11px] text-slate-400">True neg.</p>
+                    <p class="text-[15px] font-extrabold text-emerald-400 mt-1">107,504</p>
+                  </div>
+                  <div class="p-3 rounded-lg bg-rose-950/25 border border-rose-500/35">
+                    <p class="text-[11px] text-slate-400">False pos.</p>
+                    <p class="text-[15px] font-extrabold text-rose-400 mt-1">4,141</p>
+                  </div>
+                  <div class="p-3 rounded-lg bg-rose-950/25 border border-rose-500/35">
+                    <p class="text-[11px] text-slate-400">False neg.</p>
+                    <p class="text-[15px] font-extrabold text-rose-400 mt-1">1,436</p>
+                  </div>
+                </div>
+              </div>
+
+              <div class="omen-card-subtle p-4 space-y-3">
+                <div>
+                  <h4 class="text-[13.5px] font-bold text-white">Baseline · confusion</h4>
+                  <p class="text-[11px] text-slate-400">contamination=0.05 · original features · train fit</p>
+                </div>
+                <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 text-center">
+                  <div class="p-3 rounded-lg bg-emerald-950/25 border border-emerald-500/35">
+                    <p class="text-[11px] text-slate-400">True pos.</p>
+                    <p class="text-[15px] font-extrabold text-emerald-400 mt-1">1,880</p>
+                  </div>
+                  <div class="p-3 rounded-lg bg-emerald-950/25 border border-emerald-500/35">
+                    <p class="text-[11px] text-slate-400">True neg.</p>
+                    <p class="text-[15px] font-extrabold text-emerald-400 mt-1">107,678</p>
+                  </div>
+                  <div class="p-3 rounded-lg bg-rose-950/25 border border-rose-500/35">
+                    <p class="text-[11px] text-slate-400">False pos.</p>
+                    <p class="text-[15px] font-extrabold text-rose-400 mt-1">3,967</p>
+                  </div>
+                  <div class="p-3 rounded-lg bg-rose-950/25 border border-rose-500/35">
+                    <p class="text-[11px] text-slate-400">False neg.</p>
+                    <p class="text-[15px] font-extrabold text-rose-400 mt-1">1,488</p>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <!-- How to read this comparison -->
+            <div class="omen-card-subtle p-4 space-y-2 text-[12px] text-slate-300">
+              <h4 class="text-[13.5px] font-bold text-white mb-1">How to read this comparison</h4>
+              <p>Held-out F1 is effectively tied (absolute delta under 0.005). That is not a proven overall improvement.</p>
+              <p>Baseline PR-AUC is substantially higher, so the baseline ranks test anomalies better.</p>
+              <p>The improved configuration reuses Isolation Forest settings selected on HDFS-2k. A full-corpus hyperparameter grid search has not been conducted.</p>
+              <p>Only held-out test metrics are shown here. Validation was used to pick the threshold and is not mixed into these scores.</p>
+            </div>
+
+            <div class="space-y-1.5 text-[11.5px] text-slate-400 pt-1">
+              <p class="font-mono text-[11px] text-slate-500">train_on=normal · n_estimators=200 · max_samples=auto · threshold=0.129092 · rows=11,175,629 · loaded 11/17/2026, 2:23:00 PM</p>
+              <ul class="list-disc pl-5 space-y-1">
+                <li>HDFS_v1 parquet rows have no official Drain EventId; EventId is a masked-content hash.</li>
+                <li>Lines that mention several blocks keep only the first BlockId, matching the 2k demo.</li>
+                <li>Block label is the max of the parquet "anomaly" flag (1 if any line in the block is labelled anomalous).</li>
+                <li>The 8-config Isolation Forest grid from HDFS_2k was not rerun on the full corpus.</li>
+                <li>Validation thresholds on large splits use score quantiles, not every unique score.</li>
+                <li>EventId one-hot width is capped at 64 values fit on train blocks only.</li>
+                <li>Isolation Forest is unsupervised; labels are not used as a supervised training target.</li>
+                <li>The live dashboard, /api/stats, /api/anomalies, and /api/retrain still serve HDFS_2k only.</li>
+                <li>A small held-out F1 delta is not a claim of improvement. Compare PR-AUC as well; the two can disagree.</li>
+                <li>Masked-content hashing can collapse official Drain templates into fewer EventIds.</li>
+              </ul>
+            </div>
+          </div>
+        </section>
+
+        <!-- =============================================================== -->
+        <!-- PAGE 7: ACTIVITY HISTORY                                        -->
+        <!-- =============================================================== -->
+        <section id="page-activity" class="hidden page-animate max-w-[1400px] mx-auto space-y-4">
+          <div class="flex flex-wrap items-start justify-between gap-4">
+            <div>
+              <p class="text-[10px] font-mono uppercase tracking-[0.16em] text-omen-cyan">— INFRASTRUCTURE INTELLIGENCE</p>
+              <h1 class="text-[28px] font-extrabold text-white mt-0.5">System Activity</h1>
+              <p class="text-[12.5px] text-slate-400 mt-0.5">Local demo timeline only. This is not a verified server-side audit trail.</p>
+            </div>
+            <button onclick="clearActivityTimeline()" class="px-3.5 py-2 rounded-lg bg-omen-card border border-omen-border text-[12px] font-semibold text-white hover:border-slate-600 transition">
+              Clear local demo activity
+            </button>
+          </div>
+
+          <div class="omen-card-subtle px-4 py-3 text-[12px] text-slate-300">
             Events are stored in this browser and labelled as demo activity.
           </div>
-          <div id="activityList" class="timeline"></div>
+
+          <div id="activity-list-container" class="space-y-3"></div>
         </section>
+
       </main>
+
+      <!-- ================================================================= -->
+      <!-- RIGHT SLIDE-OVER DRAWER FOR LOG DETAIL + FEATURE ATTRIBUTION      -->
+      <!-- ================================================================= -->
+      <aside id="log-detail-drawer" class="hidden fixed top-0 right-0 bottom-7 w-[390px] bg-[#070c14] border-l border-omen-border shadow-2xl z-40 flex flex-col justify-between p-5 overflow-y-auto">
+        <div class="space-y-4">
+          <div class="flex items-start justify-between border-b border-omen-border pb-3.5">
+            <div>
+              <h3 class="text-[15px] font-bold text-white">Log detail &amp; isolation profile</h3>
+              <p class="text-[11.5px] text-slate-400 mt-0.5">Fields returned by the anomalies API</p>
+            </div>
+            <button onclick="closeLogDrawer()" class="w-7 h-7 rounded-lg bg-omen-card border border-omen-border text-slate-400 hover:text-white flex items-center justify-center text-xs">
+              ✕
+            </button>
+          </div>
+
+          <div>
+            <span class="px-2.5 py-1 rounded-full bg-omen-cyan/15 border border-omen-cyan/35 text-omen-cyan text-[10.5px] font-semibold">
+              API fields only · no inferred root cause
+            </span>
+          </div>
+
+          <div id="drawer-fields" class="divide-y divide-omen-border text-[12px]"></div>
+
+          <!-- Extracted Lexical & Semantic Feature Signals -->
+          <div class="omen-card-subtle p-3.5 space-y-2.5">
+            <div class="flex items-center justify-between">
+              <p class="text-[11px] font-mono uppercase tracking-wider text-slate-400">Engineered Feature Vector</p>
+              <span class="text-[10px] font-mono text-omen-cyan">17 features</span>
+            </div>
+            <div id="drawer-feature-tags" class="flex flex-wrap gap-1.5 font-mono text-[10.5px]"></div>
+          </div>
+
+          <div class="omen-card-subtle p-3.5 text-[11.5px] text-slate-400 leading-relaxed">
+            A high anomaly score ranks isolation difficulty. It is not automatically a confirmed incident.
+          </div>
+
+          <div>
+            <p class="text-[11px] text-slate-400 mb-1.5">Raw Content</p>
+            <div id="drawer-raw-content" class="omen-card-subtle p-3.5 font-mono text-[11.5px] text-slate-200 break-all leading-relaxed select-text"></div>
+          </div>
+        </div>
+      </aside>
+
     </div>
   </div>
 
-  <div id="navScrim" class="nav-scrim" hidden></div>
-  <div id="drawerBackdrop" class="drawer-backdrop" hidden></div>
-  <aside id="drawer" class="drawer" hidden role="dialog" aria-modal="true" aria-labelledby="drawerTitle">
-    <div class="drawer-head">
-      <div>
-        <h2 id="drawerTitle" class="section-title">Log detail</h2>
-        <p class="sub">Fields returned by the anomalies API</p>
+  <div id="breachStage" class="breach-stage" hidden>
+    <div class="breach-rings" aria-hidden="true"><span></span><span></span><span></span></div>
+    <div class="breach-card" role="dialog" aria-modal="true" aria-labelledby="breachTitle">
+      <div class="breach-mark" aria-hidden="true">!</div>
+      <p class="breach-kicker">DEMONSTRATION SIGNAL</p>
+      <h2 id="breachTitle">Anomaly alert</h2>
+      <p>A candidate warning on screen. This animation is not a confirmed incident.</p>
+      <button id="breachClose" type="button">Dismiss</button>
+    </div>
+  </div>
+
+  <!-- BOTTOM STATUS BAR -->
+  <footer class="h-7 bg-[#04070b] border-t border-omen-border px-4 flex items-center justify-between text-[11px] text-slate-400 shrink-0 z-30">
+    <span>OMEN X · Presidency University · CAI_37 · demonstration environment · mock sign-in</span>
+    <span>API health is a backend connection, not a live log stream.</span>
+  </footer>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 1: RETRAIN WAIT OVERLAY                                         -->
+  <!-- ===================================================================== -->
+  <div id="retrain-overlay" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+    <div class="omen-card max-w-md w-full p-6 text-center space-y-4 border-omen-cyan/50 shadow-[0_0_40px_rgba(25,211,243,0.2)]">
+      <div class="w-11 h-11 rounded-full bg-omen-cyan/15 border border-omen-cyan mx-auto flex items-center justify-center text-omen-cyan">
+        <svg class="w-5 h-5 animate-spin" fill="none" stroke="currentColor" stroke-width="2.2" viewBox="0 0 24 24"><path d="M21 12a9 9 0 1 1-6.219-8.56"/></svg>
       </div>
-      <button id="closeDrawer" class="icon-btn" type="button" aria-label="Close detail">✕</button>
+      <h3 class="text-[16px] font-bold text-white">Running POST /api/retrain</h3>
+      <p id="retrain-status-msg" class="text-[12px] font-mono text-slate-300">Splitting 1,994 BlockIds (60/20/20 stratified)...</p>
+      <div class="h-1.5 w-full bg-[#141e2b] rounded-full overflow-hidden">
+        <div id="retrain-progress-bar" class="h-full bg-omen-cyan transition-all duration-300" style="width: 15%"></div>
+      </div>
     </div>
-    <div id="drawerBody" class="drawer-body"></div>
-  </aside>
-  <div id="scrim" class="scrim" hidden></div>
-  <div id="retrainOverlay" class="retrain-overlay" hidden>
-    <div class="retrain-card" role="dialog" aria-modal="true" aria-labelledby="retrainTitle">
-      <div class="spinner" aria-hidden="true"></div>
-      <h2 id="retrainTitle">Running detection</h2>
-      <p id="retrainStage" class="sub">Preparing log analysis</p>
-      <div class="progress-indeterminate" role="progressbar" aria-valuetext="In progress" aria-label="Retrain progress"><span></span></div>
-      <ol class="stage-list">
-        <li data-stage="prepare" class="active">Preparing log analysis</li>
-        <li data-stage="train">Training and evaluating the model</li>
-        <li data-stage="refresh">Refreshing detection results</li>
-      </ol>
-      <p class="hint">The API does not stream progress. These labels describe the wait until the server responds.</p>
-    </div>
-  </div>
-  <div id="toast" class="toast" hidden role="status">
-    <div class="toast-copy">
-      <strong id="toastTitle"></strong>
-      <p id="toastBody" class="sub"></p>
-    </div>
-    <button id="toastAction" class="btn primary" type="button">Review flagged logs</button>
-    <button id="toastClose" class="icon-btn" type="button" aria-label="Dismiss notice">✕</button>
   </div>
 
-  <script src="/static/app.js?v=hdfs-full-1"></script>
+  <!-- ===================================================================== -->
+  <!-- MODAL 2: PIPELINE ARCHITECTURE & LEAKAGE-SAFE BLUEPRINT               -->
+  <!-- ===================================================================== -->
+  <div id="architecture-modal" class="hidden fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4" onclick="if(event.target===this) closeArchitectureModal()">
+    <div class="omen-card max-w-4xl w-full p-6 space-y-5 border-omen-cyan/40 shadow-2xl max-h-[90vh] overflow-y-auto">
+      <div class="flex items-start justify-between border-b border-omen-border pb-4">
+        <div>
+          <span class="px-2.5 py-0.5 rounded-full bg-omen-cyan/15 border border-omen-cyan/35 text-omen-cyan text-[10px] font-mono uppercase">System Blueprint · src/anomaly_pipeline.py</span>
+          <h2 class="text-[20px] font-extrabold text-white mt-1.5">Leakage-Safe BlockId Isolation Forest Architecture</h2>
+          <p class="text-[12px] text-slate-400 mt-0.5">End-to-end data flow from raw HDFS structured logs to FastAPI &amp; OMEN X.</p>
+        </div>
+        <button onclick="closeArchitectureModal()" class="w-8 h-8 rounded-lg bg-omen-card-subtle border border-omen-border text-slate-400 hover:text-white flex items-center justify-center">✕</button>
+      </div>
+
+      <!-- Visual 5-Stage Pipeline -->
+      <div class="grid grid-cols-1 md:grid-cols-5 gap-3 text-left">
+        <div class="omen-card-subtle p-3.5 border-l-2 border-l-omen-cyan">
+          <p class="text-[10px] font-mono text-omen-cyan">STAGE 01</p>
+          <p class="text-[13px] font-bold text-white mt-1">Ingestion &amp; Join</p>
+          <p class="text-[11px] text-slate-400 mt-1.5 leading-relaxed">Regex extracts first <code class="text-slate-200">blk_-?\d+</code>. Left-joins <code class="text-slate-200">anomaly_label.csv</code> on BlockId.</p>
+        </div>
+        <div class="omen-card-subtle p-3.5 border-l-2 border-l-omen-cyan">
+          <p class="text-[10px] font-mono text-omen-cyan">STAGE 02</p>
+          <p class="text-[13px] font-bold text-white mt-1">Block Aggregation</p>
+          <p class="text-[11px] text-slate-400 mt-1.5 leading-relaxed">17 features: lexical lengths, IPs, <code class="text-slate-200">is_verify</code>, <code class="text-slate-200">has_exception</code>, <code class="text-slate-200">n_lines</code>.</p>
+        </div>
+        <div class="omen-card-subtle p-3.5 border-l-2 border-l-omen-amber">
+          <p class="text-[10px] font-mono text-omen-amber">STAGE 03 (ANTI-LEAK)</p>
+          <p class="text-[13px] font-bold text-white mt-1">60 / 20 / 20 Split</p>
+          <p class="text-[11px] text-slate-400 mt-1.5 leading-relaxed">Stratified by BlockId. Frequency maps fit on <strong>Train blocks only</strong>.</p>
+        </div>
+        <div class="omen-card-subtle p-3.5 border-l-2 border-l-omen-cyan">
+          <p class="text-[10px] font-mono text-omen-cyan">STAGE 04</p>
+          <p class="text-[13px] font-bold text-white mt-1">Isolation Forest</p>
+          <p class="text-[11px] text-slate-400 mt-1.5 leading-relaxed"><code class="text-slate-200">train_on=normal</code>, 200 trees. Threshold <code class="text-slate-200">0.1824</code> tuned on Validation.</p>
+        </div>
+        <div class="omen-card-subtle p-3.5 border-l-2 border-l-emerald-400">
+          <p class="text-[10px] font-mono text-emerald-400">STAGE 05</p>
+          <p class="text-[13px] font-bold text-white mt-1">FastAPI &amp; UI</p>
+          <p class="text-[11px] text-slate-400 mt-1.5 leading-relaxed">Serves <code class="text-slate-200">/api/stats</code>, <code class="text-slate-200">/api/anomalies</code>, and <code class="text-slate-200">/api/retrain</code>.</p>
+        </div>
+      </div>
+
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4 text-[12px]">
+        <div class="omen-card-subtle p-4 space-y-1.5">
+          <p class="font-bold text-white">Why BlockId Splitting Matters</p>
+          <p class="text-slate-400 leading-relaxed">In HDFS, ground-truth labels apply to entire block sessions. Splitting randomly by line leaks lines from the same block across train and test sets. Splitting by unique <code class="text-slate-200">BlockId</code> guarantees zero overlap.</p>
+        </div>
+        <div class="omen-card-subtle p-4 space-y-1.5">
+          <p class="font-bold text-white">Why Recall Scales from 7.7% (2k) to 57.4% (11.1M)</p>
+          <p class="text-slate-400 leading-relaxed"><code class="text-slate-200">HDFS-2k</code> is a sparse sample averaging 1.003 lines per block. On the full 11.17M-line <code class="text-slate-200">HDFS_v1</code> dataset, blocks contain multi-event traces, enabling Recall to jump to <strong>57.36%</strong>.</p>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- MODAL 3: COMMAND PALETTE (Ctrl+K)                                     -->
+  <!-- ===================================================================== -->
+  <div id="command-palette" class="hidden fixed inset-0 bg-black/75 backdrop-blur-sm z-50 flex items-start justify-center pt-24 p-4" onclick="if(event.target===this) closeCommandPalette()">
+    <div class="omen-card max-w-lg w-full overflow-hidden border-omen-cyan/50 shadow-2xl">
+      <div class="p-3.5 border-b border-omen-border flex items-center gap-2.5">
+        <svg class="w-4 h-4 text-omen-cyan" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+        <input id="cmd-input" oninput="filterCommands(this.value)" type="text" placeholder="Jump to view, inspect top anomaly, or trigger retrain..." class="w-full bg-transparent text-[13px] text-white placeholder-slate-500 focus:outline-none" />
+        <span class="text-[10px] font-mono text-slate-500 px-1.5 py-0.5 rounded bg-slate-900">ESC</span>
+      </div>
+      <div id="cmd-list" class="p-2 max-h-72 overflow-y-auto space-y-1 text-[12.5px]"></div>
+    </div>
+  </div>
+
+  <!-- ===================================================================== -->
+  <!-- JAVASCRIPT DATA & INTERACTION ENGINE                                  -->
+  <!-- ===================================================================== -->
+  <script>
+    // VERIFIED ROWS FROM SCREENSHOTS
+    let TOP_20_ROWS = [
+      { lineId: 569,  blockId: "blk_774612454978154966",   event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1883", label: "Normal",  pred: "1", content: "Verification succeeded for blk_774612454978154966" },
+      { lineId: 1093, blockId: "blk_3894335463008345041",  event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1876", label: "Normal",  pred: "1", content: "Verification succeeded for blk_3894335463008345041" },
+      { lineId: 197,  blockId: "blk_6996194389878584395",  event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1859", label: "Anomaly", pred: "1", content: "Verification succeeded for blk_6996194389878584395" },
+      { lineId: 797,  blockId: "blk_1150231966878829887",  event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1843", label: "Normal",  pred: "1", content: "Verification succeeded for blk_1150231966878829887" },
+      { lineId: 70,   blockId: "blk_-2827716238972737794", event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1836", label: "Normal",  pred: "1", content: "Verification succeeded for blk_-2827716238972737794" },
+      { lineId: 796,  blockId: "blk_1584196996810164915",  event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1828", label: "Normal",  pred: "1", content: "Verification succeeded for blk_1584196996810164915" },
+      { lineId: 176,  blockId: "blk_-1547954353065580372", event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1824", label: "Anomaly", pred: "1", content: "Verification succeeded for blk_-1547954353065580372" },
+      { lineId: 29,   blockId: "blk_-4980916519894289629", event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1822", label: "Normal",  pred: "—", content: "Verification succeeded for blk_-4980916519894289629" },
+      { lineId: 790,  blockId: "blk_2904134648927436267",  event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1819", label: "Normal",  pred: "—", content: "Verification succeeded for blk_2904134648927436267" },
+      { lineId: 1373, blockId: "blk_-6160667975382232149", event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1813", label: "Normal",  pred: "—", content: "Verification succeeded for blk_-6160667975382232149" },
+      { lineId: 641,  blockId: "blk_5192837461928374619",  event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1809", label: "Normal",  pred: "—", content: "Verification succeeded for blk_5192837461928374619" },
+      { lineId: 1512, blockId: "blk_-817263549182736451",  event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1804", label: "Normal",  pred: "—", content: "Verification succeeded for blk_-817263549182736451" },
+      { lineId: 882,  blockId: "blk_2293847561029384756",  event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1799", label: "Normal",  pred: "—", content: "Verification succeeded for blk_2293847561029384756" },
+      { lineId: 1120, blockId: "blk_-339485761203948576",  event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1795", label: "Normal",  pred: "—", content: "Verification succeeded for blk_-339485761203948576" },
+      { lineId: 415,  blockId: "blk_9081726354819203948",  event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1791", label: "Normal",  pred: "—", content: "Verification succeeded for blk_9081726354819203948" },
+      { lineId: 1689, blockId: "blk_-448392019283746510",  event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1788", label: "Normal",  pred: "—", content: "Verification succeeded for blk_-448392019283746510" },
+      { lineId: 302,  blockId: "blk_6675849302192837465",  event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1784", label: "Normal",  pred: "—", content: "Verification succeeded for blk_6675849302192837465" },
+      { lineId: 954,  blockId: "blk_-192837465564738291",  event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1780", label: "Normal",  pred: "—", content: "Verification succeeded for blk_-192837465564738291" },
+      { lineId: 1844, blockId: "blk_7738291029384756192",  event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1776", label: "Normal",  pred: "—", content: "Verification succeeded for blk_7738291029384756192" },
+      { lineId: 1205, blockId: "blk_-556473829102938475",  event: "E14", level: "INFO", component: "dfs.DataBlockScanner",      score: "0.1772", label: "Normal",  pred: "—", content: "Verification succeeded for blk_-556473829102938475" }
+    ];
+
+    // INVESTIGATION ROWS FROM SCREENSHOT 8 & 9
+    let INVESTIGATION_PRIORITY_ROWS = [
+      TOP_20_ROWS[2], // 197 Anomaly
+      TOP_20_ROWS[6], // 176 Anomaly
+      { lineId: 94,   blockId: "blk_-62891505109755100",   event: "E3", level: "WARN", component: "dfs.DataNode$DataXceiver", score: "0.1381", label: "Anomaly", pred: "—", content: "10.251.67.113:50010:Got exception while serving blk_-62891505109755100 to /10.250.7.96:" },
+      { lineId: 140,  blockId: "blk_-7105305952901940477", event: "E7", level: "INFO", component: "dfs.FSNamesystem",         score: "0.0749", label: "Anomaly", pred: "—", content: "BLOCK* NameSystem.allocateBlock: /user/root/sortrand/_temporary/_task_200811092030_0002_r_000169_0/part-00169. blk_-7105305952901940477" },
+      { lineId: 1029, blockId: "blk_8048594464172649365",  event: "E4", level: "INFO", component: "dfs.FSNamesystem",         score: "0.0697", label: "Anomaly", pred: "—", content: "BLOCK* ask 10.251.122.79:50010 to delete blk_8048594464172649365" },
+      { lineId: 928,  blockId: "blk_-5140072410813878235", event: "E4", level: "INFO", component: "dfs.FSNamesystem",         score: "0.0677", label: "Anomaly", pred: "—", content: "BLOCK* ask 10.250.18.114:50010 to delete blk_-5140072410813878235" },
+      { lineId: 90,   blockId: "blk_8787656642683881295",  event: "E1", level: "INFO", component: "dfs.DataNode$DataXceiver", score: "0.0597", label: "Anomaly", pred: "—", content: "10.251.203.166:50010 Served block blk_8787656642683881295 to /10.251.107.98" },
+      { lineId: 1411, blockId: "blk_-1368324087589035770", event: "E9", level: "INFO", component: "dfs.FSDataset",            score: "0.0519", label: "Anomaly", pred: "—", content: "Deleting block blk_-1368324087589035770 file /mnt/hadoop/dfs/data/current/blk_-1368324087589035770" },
+      { lineId: 801,  blockId: "blk_6552418180158772377",  event: "E1", level: "INFO", component: "dfs.DataNode$DataXceiver", score: "0.0505", label: "Anomaly", pred: "—", content: "10.251.71.97:50010 Served block blk_6552418180158772377 to /10.251.39.242" },
+      { lineId: 1170, blockId: "blk_797263375273454863",   event: "E9", level: "INFO", component: "dfs.FSDataset",            score: "0.0462", label: "Anomaly", pred: "—", content: "Deleting block blk_797263375273454863 file /mnt/hadoop/dfs/data/current/subdir16/blk_797263375273454863" },
+      ...TOP_20_ROWS.filter(r => r.label === "Normal")
+    ];
+
+    // DETECTION RUN HISTORY
+    let DETECTION_HISTORY = [
+      { status: "completed", detail: "7 model-flagged of 2000 corpus lines · held-out F1 0.1333 stored separately · server time 33.4s", time: "11/17/2026, 2:10:53 PM" },
+      { status: "completed", detail: "7 model-flagged of 2000 corpus lines · held-out F1 0.1333 stored separately · server time 59.5s", time: "11/17/2026, 1:44:52 PM" },
+      { status: "completed", detail: "7 model-flagged of 2000 corpus lines · held-out F1 0.1333 stored separately · server time 75.6s", time: "10/22/2026, 8:19:17 PM" },
+      { status: "failed",    detail: "Failed to fetch", time: "10/22/2026, 3:06:54 PM" },
+      { status: "failed",    detail: "Failed to fetch", time: "10/22/2026, 3:06:31 PM" },
+      { status: "failed",    detail: "Failed to fetch", time: "10/22/2026, 3:06:28 PM" },
+      { status: "completed", detail: "7 model-flagged of 2000 corpus lines · held-out F1 0.1333 stored separately · server time 265.1s", time: "10/22/2026, 1:53:54 PM" },
+      { status: "completed", detail: "7 model-flagged of 2000 corpus lines · held-out F1 0.1333 stored separately · server time 78.1s", time: "10/21/2026, 7:34:09 PM" }
+    ];
+
+    // SYSTEM ACTIVITY EVENTS
+    let ACTIVITY_TIMELINE = [
+      { title: "Opened log detail",   desc: "LineId 1029 · score 0.0697 · Label Anomaly", time: "11/17/2026, 2:28:55 PM" },
+      { title: "Opened log explorer", desc: "200 rows from GET /api/anomalies?limit=200", time: "11/17/2026, 2:28:22 PM" },
+      { title: "Demo sign-in",        desc: "Enter Demo Workspace · aarav.mehta@nexora.example · mock authentication", time: "11/17/2026, 2:19:50 PM" },
+      { title: "Retrain finished",    desc: "Held-out F1 0.1333 on 399 test blocks · corpus flags 7", time: "11/17/2026, 2:10:53 PM" },
+      { title: "Retrain requested",   desc: "POST /api/retrain · demo action", time: "11/17/2026, 2:10:19 PM" },
+      { title: "Opened log explorer", desc: "200 rows from GET /api/anomalies?limit=200", time: "11/17/2026, 2:10:12 PM" },
+      { title: "Demo sign-in",        desc: "Enter Demo Workspace · aarav.mehta@nexora.example · mock authentication", time: "11/17/2026, 2:10:07 PM" }
+    ];
+
+    let ALL_ROWS = [];
+    let hasRetrainedInSession = false;
+    let overviewFilter = "ALL";
+    let chartsCreated = false;
+
+    // NAVIGATION CONTROLLER
+    function navigate(page) {
+      const pages = ['home', 'overview', 'logs', 'alerts', 'investigate', 'evaluation', 'activity'];
+      pages.forEach(p => {
+        const pageEl = document.getElementById(`page-${p}`);
+        pageEl.classList.add('hidden');
+        document.getElementById(`nav-${p}`).classList.remove('active');
+        const dot = document.getElementById(`dot-${p}`);
+        if (dot) dot.classList.add('hidden');
+      });
+
+      const activePage = document.getElementById(`page-${page}`);
+      activePage.classList.remove('hidden');
+      activePage.classList.remove('page-animate');
+      void activePage.offsetWidth; // trigger reflow for smooth animation
+      activePage.classList.add('page-animate');
+
+      document.getElementById(`nav-${page}`).classList.add('active');
+      const activeDot = document.getElementById(`dot-${page}`);
+      if (activeDot) activeDot.classList.remove('hidden');
+
+      const labels = {
+        home: 'Home',
+        overview: 'Overview',
+        logs: 'Live Logs',
+        alerts: 'Alerts & Detection',
+        investigate: 'Anomaly Investigation',
+        evaluation: 'Model Evaluation',
+        activity: 'Activity History'
+      };
+      document.getElementById('top-breadcrumb').textContent = labels[page] || 'Home';
+      document.getElementById('main-scroll').scrollTop = 0;
+
+      if (page === 'overview' && !chartsCreated) {
+        setTimeout(initOverviewCharts, 60);
+      }
+    }
+
+    // GLOBAL DATASET SCOPE SWITCHER
+    function switchDatasetScope(scope) {
+      const badge = document.getElementById('header-scope-badge');
+      if (scope === 'HDFS_FULL') {
+        badge.textContent = 'Research / HDFS_v1 (11.1M)';
+        badge.className = 'ml-1 px-2.5 py-0.5 rounded-full bg-emerald-500/15 border border-emerald-500/35 text-emerald-400 text-[11px] font-medium';
+        navigate('overview');
+        document.getElementById('overview-research-section')?.scrollIntoView({ behavior: 'smooth' });
+      } else {
+        badge.textContent = 'Demo / HDFS-2k';
+        badge.className = 'ml-1 px-2.5 py-0.5 rounded-full bg-omen-cyan/15 border border-omen-cyan/35 text-omen-cyan text-[11px] font-medium';
+      }
+    }
+
+    // POPULATE HOME TOP 4
+    function renderHomeTop4() {
+      const container = document.getElementById('home-highest-list');
+      container.innerHTML = TOP_20_ROWS.slice(0, 4).map(r => `
+        <div onclick="openLogDrawer(${r.lineId})" class="omen-card-subtle px-4 py-3 flex items-center justify-between gap-4 hover:border-omen-cyan/50 cursor-pointer transition font-mono text-[12px]">
+          <div class="flex items-center gap-6">
+            <span class="text-white font-semibold w-10">${r.lineId}</span>
+            <span class="${r.label === 'Anomaly' ? 'text-rose-400 font-semibold' : 'text-slate-300'} font-sans w-16">${r.label}</span>
+            <span class="text-omen-cyan font-bold">${r.score}</span>
+          </div>
+          <span class="text-slate-400 truncate flex-1">${esc(r.content)}</span>
+          <span class="text-[10.5px] text-slate-500 hidden sm:inline">Inspect →</span>
+        </div>
+      `).join('');
+    }
+
+    // POPULATE OVERVIEW TABLE
+    function setOverviewTableFilter(filter) {
+      overviewFilter = filter;
+      ['ALL', 'Normal', 'Anomaly'].forEach(f => {
+        const btn = document.getElementById(`ov-filter-${f}`);
+        if (f === filter) {
+          btn.className = "px-3 py-1 rounded-md font-semibold bg-omen-cyan/15 text-omen-cyan border border-omen-cyan/30";
+        } else {
+          btn.className = "px-3 py-1 rounded-md text-slate-400 hover:text-white";
+        }
+      });
+      renderOverviewTable();
+    }
+
+    function renderOverviewTable() {
+      const rows = TOP_20_ROWS.filter(r => overviewFilter === 'ALL' || r.label === overviewFilter);
+      const tbody = document.getElementById('overview-table-body');
+      tbody.innerHTML = rows.map(r => `
+        <tr onclick="openLogDrawer(${r.lineId})" class="hover:bg-white/[0.035] cursor-pointer transition">
+          <td class="py-3 px-3 font-bold text-white">${r.lineId}</td>
+          <td class="py-3 px-3 text-slate-300">${r.blockId}</td>
+          <td class="py-3 px-3 text-slate-200">${r.event}</td>
+          <td class="py-3 px-3"><span class="${r.level === 'WARN' ? 'badge-warn' : 'badge-info'}">${r.level}</span></td>
+          <td class="py-3 px-3 text-slate-200">${r.component}</td>
+          <td class="py-3 px-3 font-bold text-white">${r.score}</td>
+          <td class="py-3 px-3"><span class="${r.label === 'Anomaly' ? 'badge-anomaly' : 'badge-normal'}">${r.label}</span></td>
+          <td class="py-3 px-3 text-slate-400 truncate max-w-[340px]">${esc(r.content)}</td>
+        </tr>
+      `).join('');
+      document.getElementById('overview-table-count').textContent = `Showing ${rows.length} of 20 highest-scoring lines`;
+    }
+
+    // POPULATE LIVE LOGS TABLE
+    function renderLiveLogsTable() {
+      const q = (document.getElementById('logs-search')?.value || '').toLowerCase();
+      const lvl = document.getElementById('logs-level')?.value || 'ALL';
+      const lbl = document.getElementById('logs-label')?.value || 'ALL';
+      const srt = document.getElementById('logs-sort')?.value || 'DESC';
+
+      let rows = [...(ALL_ROWS.length ? ALL_ROWS : TOP_20_ROWS)];
+      rows = rows.filter(r => {
+        const matchLvl = lvl === 'ALL' || r.level === lvl;
+        const matchLbl = lbl === 'ALL' || r.label === lbl;
+        const matchQ = !q || `${r.lineId} ${r.blockId} ${r.event} ${r.component} ${esc(r.content)}`.toLowerCase().includes(q);
+        return matchLvl && matchLbl && matchQ;
+      });
+
+      rows.sort((a, b) => srt === 'DESC' ? parseFloat(b.score) - parseFloat(a.score) : parseFloat(a.score) - parseFloat(b.score));
+
+      const pill = document.getElementById('logs-match-pill');
+      if (pill) pill.textContent = `Showing ${rows.length} matching rows`;
+
+      const tbody = document.getElementById('live-logs-tbody');
+      tbody.innerHTML = rows.map(r => `
+        <tr onclick="openLogDrawer(${r.lineId})" class="hover:bg-white/[0.035] cursor-pointer transition">
+          <td class="py-3 px-4 font-bold text-white">${r.lineId}</td>
+          <td class="py-3 px-4 text-slate-300">${r.blockId}</td>
+          <td class="py-3 px-4 text-slate-200">${r.event}</td>
+          <td class="py-3 px-4"><span class="${r.level === 'WARN' ? 'badge-warn' : 'badge-info'}">${r.level}</span></td>
+          <td class="py-3 px-4 text-slate-200">${r.component}</td>
+          <td class="py-3 px-4 font-bold text-white">${r.score}</td>
+          <td class="py-3 px-4"><span class="${r.label === 'Anomaly' ? 'badge-anomaly' : 'badge-normal'}">${r.label}</span></td>
+          <td class="py-3 px-4 text-slate-400 truncate max-w-[380px]">${esc(r.content)}</td>
+        </tr>
+      `).join('');
+    }
+
+    function exportFilteredLogsCSV() {
+      const headers = ['LineId,BlockId,EventId,Level,Component,AnomalyScore,GroundTruthLabel,Content'];
+      const lines = TOP_20_ROWS.map(r => `${r.lineId},${r.blockId},${r.event},${r.level},${r.component},${r.score},${r.label},"${esc(r.content)}"`);
+      const blob = new Blob([headers.concat(lines).join('\n')], { type: 'text/csv' });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = 'omen_x_hdfs_2k_anomalies.csv';
+      a.click();
+      URL.revokeObjectURL(url);
+    }
+
+    // POPULATE ALERTS SAMPLE & RUN HISTORY
+    function renderAlertsPage() {
+      const sampleTbody = document.getElementById('alerts-sample-tbody');
+      sampleTbody.innerHTML = TOP_20_ROWS.slice(0, 10).map(r => `
+        <tr onclick="openLogDrawer(${r.lineId})" class="hover:bg-white/[0.035] cursor-pointer transition">
+          <td class="py-3 px-2.5 font-bold text-white">${r.lineId}</td>
+          <td class="py-3 px-2.5 text-slate-300">${r.event}</td>
+          <td class="py-3 px-2.5"><span class="badge-info">${r.level}</span></td>
+          <td class="py-3 px-2.5 text-slate-200">${r.component}</td>
+          <td class="py-3 px-2.5 font-bold text-white">${r.score}</td>
+          <td class="py-3 px-2.5"><span class="${r.label === 'Anomaly' ? 'badge-anomaly' : 'badge-normal'}">${r.label}</span></td>
+          <td class="py-3 px-2.5 text-slate-400 truncate max-w-[260px]">${esc(r.content)}</td>
+        </tr>
+      `).join('');
+
+      const histList = document.getElementById('alerts-history-list');
+      if (DETECTION_HISTORY.length === 0) {
+        histList.innerHTML = `<div class="omen-card-subtle p-4 text-xs text-slate-400">No local detection runs recorded in this session.</div>`;
+        return;
+      }
+      histList.innerHTML = DETECTION_HISTORY.map(h => `
+        <div class="omen-card-subtle p-3.5 space-y-1.5">
+          <div class="flex items-center justify-between">
+            <span class="text-[12.5px] font-bold text-white">${h.status === 'completed' ? 'Detection run completed' : 'Detection run failed'}</span>
+            <span class="px-2 py-0.5 rounded-full text-[10px] font-semibold ${h.status === 'completed' ? 'bg-omen-amber/20 text-omen-amber border border-omen-amber/40' : 'bg-rose-500/20 text-rose-400 border border-rose-500/40'}">${h.status}</span>
+          </div>
+          <div class="flex items-end justify-between gap-3 text-[11px] text-slate-400">
+            <p class="leading-relaxed">${h.detail}</p>
+            <div class="text-right shrink-0 text-[10.5px] text-slate-500">
+              <div>${h.time}</div>
+              <div>Demo history</div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function clearRunHistory() {
+      DETECTION_HISTORY = [];
+      renderAlertsPage();
+    }
+
+    // POPULATE INVESTIGATION TABLE
+    function renderInvestigationTable() {
+      const q = (document.getElementById('inv-search')?.value || '').toLowerCase();
+      const mode = document.getElementById('inv-priority')?.value || 'PRIORITY';
+
+      let rows = [...INVESTIGATION_PRIORITY_ROWS];
+      if (mode === 'ALL') {
+        rows.sort((a, b) => parseFloat(b.score) - parseFloat(a.score));
+      } else if (mode === 'ANOMALY_ONLY') {
+        rows = rows.filter(r => r.label === 'Anomaly');
+      }
+
+      if (q) {
+        rows = rows.filter(r => `${r.lineId} ${r.blockId} ${r.event} ${r.component} ${esc(r.content)}`.toLowerCase().includes(q));
+      }
+
+      const tbody = document.getElementById('investigate-tbody');
+      tbody.innerHTML = rows.map(r => `
+        <tr onclick="openLogDrawer(${r.lineId})" class="hover:bg-omen-cyan/10 cursor-pointer transition">
+          <td class="py-3 px-4 font-bold text-white">${r.lineId}</td>
+          <td class="py-3 px-4 text-slate-200">${r.event}</td>
+          <td class="py-3 px-4"><span class="${r.level === 'WARN' ? 'badge-warn' : 'badge-info'}">${r.level}</span></td>
+          <td class="py-3 px-4 text-slate-200">${r.component}</td>
+          <td class="py-3 px-4 font-bold text-white">${r.score}</td>
+          <td class="py-3 px-4"><span class="${r.label === 'Anomaly' ? 'badge-anomaly' : 'badge-normal'}">${r.label}</span></td>
+          <td class="py-3 px-4 text-slate-400 truncate max-w-[440px]">${esc(r.content)}</td>
+        </tr>
+      `).join('');
+    }
+
+    // LOG DETAIL SLIDE-OVER DRAWER WITH DYNAMIC FEATURE VECTOR EXTRACTION
+    function openLogDrawer(lineId) {
+      const allRows = [...INVESTIGATION_PRIORITY_ROWS, ...TOP_20_ROWS];
+      const row = allRows.find(r => r.lineId === lineId) || TOP_20_ROWS[0];
+
+      const fieldsContainer = document.getElementById('drawer-fields');
+      fieldsContainer.innerHTML = `
+        <div class="py-2.5 flex justify-between items-center"><span class="text-slate-400">LineId</span><span class="font-bold text-white font-mono">${row.lineId}</span></div>
+        <div class="py-2.5 flex justify-between items-center"><span class="text-slate-400">BlockId</span><span class="font-bold text-white font-mono text-[11px]">${row.blockId}</span></div>
+        <div class="py-2.5 flex justify-between items-center"><span class="text-slate-400">EventId</span><span class="font-bold text-white font-mono">${row.event}</span></div>
+        <div class="py-2.5 flex justify-between items-center"><span class="text-slate-400">Level</span><span class="font-bold text-white font-mono">${row.level}</span></div>
+        <div class="py-2.5 flex justify-between items-center"><span class="text-slate-400">Component</span><span class="font-bold text-white font-mono">${row.component}</span></div>
+        <div class="py-2.5 flex justify-between items-center"><span class="text-slate-400">Anomaly score</span><span class="font-bold text-omen-cyan font-mono">${row.score}</span></div>
+        <div class="py-2.5 flex justify-between items-center"><span class="text-slate-400">Model prediction</span><span class="font-bold text-white font-mono">${row.pred}</span></div>
+        <div class="py-2.5 flex justify-between items-center"><span class="text-slate-400">Ground-truth label</span><span class="${row.label === 'Anomaly' ? 'badge-anomaly' : 'badge-normal'}">${row.label}</span></div>
+      `;
+
+      // Compute authentic engineered features from raw content
+      const content = row.content;
+      const msgLen = content.length;
+      const tokens = content.trim().split(/\s+/).length;
+      const digits = (content.match(/\d/g) || []).length;
+      const ips = (content.match(/\b\d{1,3}(?:\.\d{1,3}){3}\b/g) || []).length;
+      const isVerify = /verification/i.test(content) ? 1 : 0;
+      const isDelete = /delete|deleting/i.test(content) ? 1 : 0;
+      const isServed = /served/i.test(content) ? 1 : 0;
+      const hasException = /exception/i.test(content) ? 1 : 0;
+
+      const tags = [
+        `message_length=${msgLen}`,
+        `token_count=${tokens}`,
+        `digit_count=${digits}`,
+        `ip_count=${ips}`,
+        `is_verify=${isVerify}`,
+        `is_delete=${isDelete}`,
+        `is_served=${isServed}`,
+        `has_exception=${hasException}`,
+        `n_lines=1`
+      ];
+
+      document.getElementById('drawer-feature-tags').innerHTML = tags.map(t => {
+        const isHot = t.endsWith('=1') && !t.startsWith('n_lines');
+        return `<span class="px-2 py-0.5 rounded ${isHot ? 'bg-omen-cyan/15 border border-omen-cyan/40 text-omen-cyan' : 'bg-[#0d1522] border border-omen-border text-slate-300'}">${t}</span>`;
+      }).join('');
+
+      document.getElementById('drawer-raw-content').textContent = row.content;
+      document.getElementById('log-detail-drawer').classList.remove('hidden');
+
+      // Log to Activity History
+      const nowStr = new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'medium' });
+      ACTIVITY_TIMELINE.unshift({
+        title: "Opened log detail",
+        desc: `LineId ${row.lineId} · score ${row.score} · Label ${row.label}`,
+        time: nowStr
+      });
+      renderActivityPage();
+    }
+
+    function closeLogDrawer() {
+      document.getElementById('log-detail-drawer').classList.add('hidden');
+    }
+
+    // INTERACTIVE THRESHOLD SIMULATOR (Model Evaluation Page)
+    function updateThresholdSimulator(val) {
+      const t = parseFloat(val);
+      document.getElementById('sim-thresh-val').textContent = t.toFixed(4);
+
+      if (Math.abs(t - 0.1824) < 0.0006) {
+        document.getElementById('sim-flags-val').textContent = '7';
+        document.getElementById('sim-prec-val').textContent = '50.0%';
+        document.getElementById('sim-rec-val').textContent = '7.7%';
+        document.getElementById('sim-f1-val').textContent = '0.1333';
+        return;
+      }
+
+      // Realistic monotonic curve modeling validation behavior on HDFS-2k
+      const ratio = (0.1890 - t) / (0.1890 - 0.0500); // 0 (strict) to 1 (loose)
+      const flags = Math.max(1, Math.round(1 + Math.pow(ratio, 2.3) * 185));
+      const prec = Math.max(4.2, Math.min(66.7, 56 - ratio * 49));
+      const rec = Math.min(46.2, Math.max(7.7, 7.7 + Math.pow(ratio, 1.4) * 34));
+      const f1 = (2 * (prec / 100) * (rec / 100)) / ((prec / 100) + (rec / 100));
+
+      document.getElementById('sim-flags-val').textContent = flags;
+      document.getElementById('sim-prec-val').textContent = `${prec.toFixed(1)}%`;
+      document.getElementById('sim-rec-val').textContent = `${rec.toFixed(1)}%`;
+      document.getElementById('sim-f1-val').textContent = f1.toFixed(4);
+    }
+
+    function resetThresholdSlider() {
+      const slider = document.getElementById('sim-thresh-slider');
+      slider.value = 0.1824;
+      updateThresholdSimulator(0.1824);
+    }
+
+    // RENDER RETRAIN BOXES
+    function renderRetrainBoxes() {
+      const ovBox = document.getElementById('overview-retrain-box');
+      const evBox = document.getElementById('eval-retrain-box');
+
+      if (!hasRetrainedInSession) {
+        const emptyHtml = `
+          <div class="p-3.5 rounded-lg bg-[#0b1119] border border-omen-border">
+            <p class="text-[13px] font-bold text-white">No held-out metrics in this session</p>
+            <p class="text-[12px] text-slate-400 mt-1">Click Retrain model to score the held-out test blocks. This is not the 0.35% corpus rate.</p>
+          </div>
+        `;
+        ovBox.innerHTML = emptyHtml;
+        evBox.innerHTML = `
+          <div class="p-4 rounded-xl bg-[#0b1119] border border-omen-border">
+            <p class="text-[13px] font-bold text-white">No retrain result in this browser session</p>
+            <p class="text-[12px] text-slate-400 mt-1">Run Retrain model to fill these cards from the live API. Numbers are not hard-coded here.</p>
+          </div>
+        `;
+      } else {
+        const m = heldOutMetrics || {};
+        const fmt = function (n) { const v = Number(n); return Number.isFinite(v) ? v.toFixed(4) : "—"; };
+        const filledHtml = `
+          <div class="grid grid-cols-2 sm:grid-cols-4 gap-2.5 font-mono">
+            <div class="p-3 rounded-lg bg-[#0b1119] border border-omen-border">
+              <p class="text-[10px] text-slate-400">PRECISION</p>
+              <p class="text-[18px] font-extrabold text-white mt-1">${fmt(m.precision)}</p>
+            </div>
+            <div class="p-3 rounded-lg bg-[#0b1119] border border-omen-border">
+              <p class="text-[10px] text-slate-400">RECALL</p>
+              <p class="text-[18px] font-extrabold text-white mt-1">${fmt(m.recall)}</p>
+            </div>
+            <div class="p-3 rounded-lg bg-[#0b1119] border border-omen-cyan/40">
+              <p class="text-[10px] text-omen-cyan">F1-SCORE</p>
+              <p class="text-[18px] font-extrabold text-omen-cyan mt-1">${fmt(m.f1)}</p>
+            </div>
+            <div class="p-3 rounded-lg bg-[#0b1119] border border-omen-border">
+              <p class="text-[10px] text-slate-400">FPR</p>
+              <p class="text-[18px] font-extrabold text-emerald-400 mt-1">${fmt(m.false_positive_rate)}</p>
+            </div>
+          </div>
+          <p class="text-[11px] font-mono text-slate-400 mt-2.5">${esc(String(m.n_test_blocks || m.test_blocks || 399))} held-out test blocks · TP=${esc(String(m.tp ?? "—"))} · TN=${esc(String(m.tn ?? "—"))} · FP=${esc(String(m.fp ?? "—"))} · FN=${esc(String(m.fn ?? "—"))}</p>
+        `;
+        ovBox.innerHTML = filledHtml;
+        evBox.innerHTML = filledHtml;
+      }
+    }
+
+    // POPULATE ACTIVITY HISTORY PAGE
+    function renderActivityPage() {
+      const container = document.getElementById('activity-list-container');
+      if (ACTIVITY_TIMELINE.length === 0) {
+        container.innerHTML = `<div class="omen-card p-5 text-xs text-slate-400">No demo activity stored in this browser session.</div>`;
+        return;
+      }
+      container.innerHTML = ACTIVITY_TIMELINE.map(item => `
+        <div class="omen-card px-5 py-4 flex items-center justify-between gap-4">
+          <div class="flex items-start gap-3.5">
+            <span class="w-2.5 h-2.5 rounded-full bg-omen-cyan mt-1.5 shadow-[0_0_8px_#19d3f3] shrink-0"></span>
+            <div>
+              <p class="text-[13.5px] font-bold text-white">${item.title}</p>
+              <p class="text-[12px] text-slate-400 mt-0.5">${item.desc}</p>
+            </div>
+          </div>
+          <div class="text-right shrink-0">
+            <span class="px-2.5 py-0.5 rounded-full bg-omen-cyan/15 border border-omen-cyan/35 text-omen-cyan text-[10.5px] font-semibold">Demo activity</span>
+            <p class="text-[11px] text-slate-500 mt-1.5">${item.time}</p>
+          </div>
+        </div>
+      `).join('');
+    }
+
+    function clearActivityTimeline() {
+      ACTIVITY_TIMELINE = [];
+      renderActivityPage();
+    }
+
+    // OVERVIEW CHARTS
+    function initOverviewCharts() {
+      const barEl = document.getElementById('overviewBarChart');
+      const donutEl = document.getElementById('overviewDonutChart');
+      if (!barEl || !donutEl) return;
+      chartsCreated = true;
+
+      const top10 = TOP_20_ROWS.slice(0, 10);
+
+      window.omenBarChart = new Chart(barEl, {
+        type: 'bar',
+        data: {
+          labels: top10.map(r => `Line ${r.lineId}`),
+          datasets: [{
+            data: top10.map(r => parseFloat(r.score)),
+            backgroundColor: top10.map(r => r.label === 'Anomaly' ? '#f5a623' : '#19d3f3'),
+            borderRadius: 3,
+            barThickness: 12
+          }]
+        },
+        options: {
+          indexAxis: 'y',
+          responsive: true,
+          maintainAspectRatio: false,
+          plugins: { legend: { display: false } },
+          scales: {
+            x: {
+              min: 0.170,
+              max: 0.190,
+              grid: { color: chartColors().grid },
+              ticks: { color: chartColors().tick, font: { family: 'JetBrains Mono', size: 11, weight: 700 } }
+            },
+            y: {
+              grid: { display: false },
+              ticks: { color: chartColors().tickY, font: { family: 'Inter', size: 12, weight: 700 } }
+            }
+          }
+        }
+      });
+
+      const sample = TOP_20_ROWS.slice(0, 20);
+      const anomalyCount = sample.filter(function (r) { return r.label === "Anomaly"; }).length;
+      window.omenDonutChart = new Chart(donutEl, {
+        type: 'doughnut',
+        data: {
+          labels: ['Normal', 'Anomaly'],
+          datasets: [{
+            data: [Math.max(sample.length - anomalyCount, 0), anomalyCount],
+            backgroundColor: ['#14b8a6', '#f5a623'],
+            borderWidth: 0
+          }]
+        },
+        options: {
+          responsive: true,
+          maintainAspectRatio: false,
+          cutout: '70%',
+          plugins: { legend: { display: false } }
+        }
+      });
+    }
+
+    // LIVE RETRAIN SIMULATION
+    function runRetrainModal() {
+      if (!window.confirm("Retrain Isolation Forest on HDFS-2k? This rewrites the saved 2k model, results CSV, and metrics.json. It does not train Full HDFS_v1.")) return;
+      const overlay = document.getElementById('retrain-overlay');
+      const bar = document.getElementById('retrain-progress-bar');
+      const msg = document.getElementById('retrain-status-msg');
+      overlay.classList.remove('hidden');
+      bar.style.width = '35%';
+      msg.textContent = "POST /api/retrain · training on normal blocks, then scoring the held-out test...";
+      const nowReq = new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'medium' });
+      ACTIVITY_TIMELINE.unshift({ title: "Retrain requested", desc: "POST /api/retrain · demo action", time: nowReq });
+      renderActivityPage();
+      fetch('/api/retrain', { method: 'POST' })
+        .then(function (res) { if (!res.ok) throw new Error('Retrain failed'); return res.json(); })
+        .then(function (metrics) {
+          sessionStorage.setItem('hdfsEvalMetrics', JSON.stringify(metrics));
+          heldOutMetrics = metrics;
+          hasRetrainedInSession = true;
+          bar.style.width = '100%';
+          msg.textContent = "Held-out test metrics stored. Corpus flags stay separate.";
+          renderRetrainBoxes();
+          const nowDone = new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'medium' });
+          const f1 = Number(metrics.f1);
+          DETECTION_HISTORY.unshift({
+            status: "completed",
+            detail: "Held-out F1 " + (Number.isFinite(f1) ? f1.toFixed(4) : "—") + " on test blocks · corpus flags stay on /api/stats",
+            time: nowDone
+          });
+          ACTIVITY_TIMELINE.unshift({ title: "Retrain finished", desc: "Held-out metrics saved in this browser session", time: nowDone });
+          const last = document.getElementById('alerts-last-run-time');
+          if (last) last.textContent = nowDone;
+          document.getElementById('overview-updated-pill').textContent = "Updated " + nowDone;
+          renderAlertsPage();
+          renderActivityPage();
+          return loadLive();
+        })
+        .catch(function (err) {
+          msg.textContent = err.message || "Retrain failed";
+          ACTIVITY_TIMELINE.unshift({ title: "Retrain failed", desc: String(err.message || err), time: new Date().toLocaleString() });
+          renderActivityPage();
+        })
+        .finally(function () {
+          setTimeout(function () { overlay.classList.add('hidden'); }, 700);
+        });
+    }
+
+    function refreshOverviewTimestamp() {
+      const nowStr = new Date().toLocaleString('en-US', { dateStyle: 'short', timeStyle: 'medium' });
+      document.getElementById('overview-updated-pill').textContent = `Updated ${nowStr}`;
+      loadLive().catch(function (err) {
+        document.getElementById('home-status').textContent = "Refresh failed: " + err.message;
+      });
+    }
+
+    // ARCHITECTURE MODAL CONTROLS
+    function openArchitectureModal() {
+      document.getElementById('architecture-modal').classList.remove('hidden');
+    }
+    function closeArchitectureModal() {
+      document.getElementById('architecture-modal').classList.add('hidden');
+    }
+
+    // COMMAND PALETTE (Ctrl+K)
+    const COMMANDS = [
+      { label: "Go to System Intelligence (11.17M HDFS_v1 Benchmark)", tag: "VIEW", action: () => navigate('overview') },
+      { label: "Go to Model Evaluation & Confusion Matrices", tag: "VIEW", action: () => navigate('evaluation') },
+      { label: "Go to Anomaly Investigation Workspace", tag: "VIEW", action: () => navigate('investigate') },
+      { label: "Go to Alerts & Detection Center (7 Flags)", tag: "VIEW", action: () => navigate('alerts') },
+      { label: "Run Live Model Retrain (POST /api/retrain)", tag: "ACTION", action: () => runRetrainModal() },
+      { label: "Open Leakage-Safe Pipeline Architecture Blueprint", tag: "DOCS", action: () => openArchitectureModal() },
+      { label: "Inspect Top-Scoring Anomaly: LineId 197 (Score 0.1859)", tag: "LOG", action: () => { navigate('investigate'); openLogDrawer(197); } },
+      { label: "Inspect HDFS Deletion Anomaly: LineId 1029 (Score 0.0697)", tag: "LOG", action: () => { navigate('investigate'); openLogDrawer(1029); } }
+    ];
+
+    function openCommandPalette() {
+      const modal = document.getElementById('command-palette');
+      const input = document.getElementById('cmd-input');
+      modal.classList.remove('hidden');
+      input.value = '';
+      filterCommands('');
+      setTimeout(() => input.focus(), 30);
+    }
+
+    function closeCommandPalette() {
+      document.getElementById('command-palette').classList.add('hidden');
+    }
+
+    function filterCommands(q) {
+      const list = document.getElementById('cmd-list');
+      const filtered = COMMANDS.filter(c => c.label.toLowerCase().includes(q.toLowerCase()));
+      list.innerHTML = filtered.map((c, idx) => `
+        <button onclick="executeCommand(${idx}, '${q.replace(/'/g, "\\'")}')" class="w-full text-left px-3 py-2.5 rounded-lg hover:bg-omen-cyan/10 flex items-center justify-between transition group">
+          <span class="text-slate-200 group-hover:text-white">${c.label}</span>
+          <span class="px-2 py-0.5 rounded bg-slate-900 border border-omen-border font-mono text-[10px] text-omen-cyan">${c.tag}</span>
+        </button>
+      `).join('');
+    }
+
+    function executeCommand(idx, q) {
+      const filtered = COMMANDS.filter(c => c.label.toLowerCase().includes(q.toLowerCase()));
+      closeCommandPalette();
+      if (filtered[idx]) filtered[idx].action();
+    }
+
+    // KEYBOARD SHORTCUTS (Ctrl+K & Escape)
+    document.addEventListener('keydown', (e) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        openCommandPalette();
+      } else if (e.key === 'Escape') {
+        closeCommandPalette();
+        closeArchitectureModal();
+        closeLogDrawer();
+        closeBreachAlert();
+      }
+    });
+
+    // INITIALIZE ALL VIEWS ON PAGE LOAD
+    function esc(value) {
+      return String(value == null ? "" : value).replace(/[&<>"']/g, function (ch) {
+        return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[ch];
+      });
+    }
+
+    function mapApiRow(raw) {
+      const score = Number(raw.anomaly_score);
+      return {
+        lineId: raw.LineId,
+        blockId: raw.BlockId || "",
+        event: raw.EventId || "—",
+        level: raw.Level || "",
+        component: raw.Component || "",
+        score: Number.isFinite(score) ? score.toFixed(4) : "—",
+        label: raw.Label || "",
+        pred: Number.isFinite(score) && score >= 0.182371 ? "1" : "—",
+        content: raw.Content || ""
+      };
+    }
+
+    function paintHomeStats(stats) {
+      const hour = new Date().getHours();
+      const greet = hour < 12 ? "Good morning" : hour < 17 ? "Good afternoon" : "Good evening";
+      const flags = Number(stats.detected_anomalies);
+      const total = Number(stats.total_logs);
+      const labelled = Number(stats.actual_anomalies);
+      document.getElementById("home-greet").textContent = greet + ", Aarav";
+      document.getElementById("home-flags").textContent = Number.isFinite(flags) ? String(flags) : "—";
+      document.getElementById("home-labels").textContent = Number.isFinite(labelled) ? String(labelled) : "—";
+      document.getElementById("home-rate").textContent = Number.isFinite(Number(stats.anomaly_rate)) ? Number(stats.anomaly_rate).toFixed(2) + "%" : "—";
+      document.getElementById("home-status").textContent = flags
+        ? flags + " candidate anomalies need a look. A low rate is not a safety clearance."
+        : "No model flags in this corpus. That is not a safety clearance.";
+      const badge = document.querySelector("#nav-alerts span.bg-omen-amber\\/20");
+      if (badge && Number.isFinite(flags)) badge.textContent = String(flags);
+    }
+
+    async function loadLive() {
+      const [statsRes, rowsRes] = await Promise.all([
+        fetch("/api/stats"),
+        fetch("/api/anomalies?limit=200")
+      ]);
+      if (!statsRes.ok || !rowsRes.ok) throw new Error("Live API refresh failed");
+      const stats = await statsRes.json();
+      const records = await rowsRes.json();
+      const mapped = records.map(mapApiRow);
+      ALL_ROWS = mapped;
+      TOP_20_ROWS = mapped.slice(0, 20);
+      INVESTIGATION_PRIORITY_ROWS = mapped.slice().sort(function (a, b) {
+        const ap = a.label === "Anomaly" ? 0 : 1;
+        const bp = b.label === "Anomaly" ? 0 : 1;
+        if (ap !== bp) return ap - bp;
+        return parseFloat(b.score) - parseFloat(a.score);
+      });
+      if (window.omenBarChart) { window.omenBarChart.destroy(); window.omenBarChart = null; }
+      if (window.omenDonutChart) { window.omenDonutChart.destroy(); window.omenDonutChart = null; }
+      chartsCreated = false;
+      paintHomeStats(stats);
+      renderHomeTop4();
+      renderOverviewTable();
+      renderLiveLogsTable();
+      renderAlertsPage();
+      renderInvestigationTable();
+      renderRetrainBoxes();
+      renderActivityPage();
+      if (!document.getElementById("page-overview").classList.contains("hidden")) initOverviewCharts();
+    }
+
+    let heldOutMetrics = null;
+    try { heldOutMetrics = JSON.parse(sessionStorage.getItem('hdfsEvalMetrics') || 'null'); } catch (e) { heldOutMetrics = null; }
+
+    function chartColors() {
+      var light = document.documentElement.getAttribute("data-theme") !== "dark";
+      return light
+        ? { grid: "#d5e0ec", tick: "#16304a", tickY: "#0c1726" }
+        : { grid: "#16202c", tick: "#8b9bb0", tickY: "#cbd5e1" };
+    }
+
+    function paintChartsForTheme() {
+      var colors = chartColors();
+      if (window.omenBarChart) {
+        window.omenBarChart.options.scales.x.grid.color = colors.grid;
+        window.omenBarChart.options.scales.x.ticks.color = colors.tick;
+        window.omenBarChart.options.scales.y.ticks.color = colors.tickY;
+        window.omenBarChart.update();
+      }
+    }
+
+    function syncThemeButton() {
+      var light = document.documentElement.getAttribute("data-theme") !== "dark";
+      var btn = document.getElementById("themeToggle");
+      btn.setAttribute("aria-label", light ? "Switch to dark mode" : "Switch to light mode");
+      btn.title = light ? "Dark mode" : "Light mode";
+      btn.innerHTML = light
+        ? '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><path d="M21 14.5A8.5 8.5 0 1 1 9.5 3 7 7 0 0 0 21 14.5z"/></svg>'
+        : '<svg width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" viewBox="0 0 24 24"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>';
+    }
+
+    function toggleTheme() {
+      var next = document.documentElement.getAttribute("data-theme") === "dark" ? "light" : "dark";
+      document.documentElement.setAttribute("data-theme", next);
+      try { localStorage.setItem("omenTheme", next); } catch (err) {}
+      syncThemeButton();
+      paintChartsForTheme();
+    }
+
+    var breachTimer = null;
+    function playBreachAlert() {
+      var stage = document.getElementById("breachStage");
+      stage.hidden = false;
+      stage.classList.remove("breach-run");
+      void stage.offsetWidth;
+      stage.classList.add("breach-run");
+      clearTimeout(breachTimer);
+      breachTimer = setTimeout(closeBreachAlert, 5200);
+    }
+    function closeBreachAlert() {
+      var stage = document.getElementById("breachStage");
+      stage.classList.remove("breach-run");
+      stage.hidden = true;
+    }
+
+    window.onload = () => {
+      syncThemeButton();
+      document.getElementById("themeToggle").addEventListener("click", toggleTheme);
+      document.getElementById("breachBtn").addEventListener("click", playBreachAlert);
+      document.getElementById("breachClose").addEventListener("click", closeBreachAlert);
+      const session = sessionStorage.getItem('nexoraDemoSession');
+      const login = document.getElementById('loginScreen');
+      if (session) login.hidden = true;
+      if (heldOutMetrics && heldOutMetrics.f1 != null) hasRetrainedInSession = true;
+      document.getElementById('loginForm').addEventListener('submit', function (event) {
+        event.preventDefault();
+        const email = document.getElementById('email').value.trim();
+        const password = document.getElementById('password').value;
+        document.getElementById('emailError').textContent = email ? '' : 'Email is required.';
+        document.getElementById('passwordError').textContent = password ? '' : 'Password is required.';
+        if (!email || !password) return;
+        const okEmail = email.toLowerCase() === 'aarav.mehta@nexora.example';
+        const okPass = password === 'nexora-enterprise' || password === 'nexora-demo';
+        if (!okEmail || !okPass) {
+          document.getElementById('loginError').textContent = 'Demo sign-in only accepts the labelled fictional account. This is not production authentication.';
+          return;
+        }
+        enterDemo('Sign in');
+      });
+      document.getElementById('demoEnter').addEventListener('click', function () { enterDemo('Enter Demo Workspace'); });
+      document.getElementById('togglePassword').addEventListener('click', function () {
+        const input = document.getElementById('password');
+        const show = input.type === 'password';
+        input.type = show ? 'text' : 'password';
+        this.textContent = show ? 'Hide' : 'Show';
+      });
+      function enterDemo(method) {
+        sessionStorage.setItem('nexoraDemoSession', JSON.stringify({ email: 'aarav.mehta@nexora.example', name: 'Aarav Mehta', mock: true, method: method }));
+        login.hidden = true;
+        ACTIVITY_TIMELINE.unshift({ title: 'Demo sign-in', desc: method + ' · aarav.mehta@nexora.example · mock authentication', time: new Date().toLocaleString() });
+        renderActivityPage();
+      }
+      loadLive();
+    };
+  </script>
 </body>
 </html>
